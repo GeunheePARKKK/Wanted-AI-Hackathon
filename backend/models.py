@@ -33,6 +33,13 @@ class Structure(BaseModel):
     box: Box
 
 
+class Room(BaseModel):
+    """A rectangular room region; furniture must stay inside one room."""
+    id: str
+    name: str
+    box: Box
+
+
 class Equipment(BaseModel):
     id: str
     name: str
@@ -56,6 +63,7 @@ class Pipe(BaseModel):
 class Scene(BaseModel):
     meta: RoomMeta
     rules: Rules
+    rooms: list[Room] = []
     structures: list[Structure]
     equipment: list[Equipment]
-    pipes: list[Pipe]
+    pipes: list[Pipe] = []

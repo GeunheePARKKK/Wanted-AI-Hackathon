@@ -19,7 +19,7 @@ TYPE_SIZES = {
     "tv_stand": [1.5, 0.4, 0.5], "washing_machine": [0.6, 0.6, 0.85], "table": [1.2, 0.8, 0.72],
 }
 
-PROMPT = """당신은 1인 주택(원룸) 가구 배치 CAD 어시스턴트입니다. 현재 방 배치 상태(단위: 미터, Z-up, 가구는 바닥 z=0에 놓임):
+PROMPT = """당신은 1인 주택(거실·침실·서재) 가구 배치 CAD 어시스턴트입니다. 현재 배치 상태(단위: 미터, Z-up, 가구는 바닥 z=0에 놓임):
 {scene}
 
 사용자 요청: "{text}"
@@ -28,13 +28,11 @@ PROMPT = """당신은 1인 주택(원룸) 가구 배치 CAD 어시스턴트입�
 - {{"op":"add_equipment","type":"bed|wardrobe|desk|sofa|fridge|bookshelf|tv_stand|washing_machine|table","center":[x,y]}}
 - {{"op":"move","id":"<객체id>","delta":[dx,dy,dz]}}
 - {{"op":"delete","id":"<객체id>"}}
-- {{"op":"add_pipe","diameter_mm":600,"path":[[x,y,0.4],[x,y,0.4],...]}}  (동선: 폭 600mm 통행 경로, z는 0.4 고정)
-- {{"op":"set_diameter","id":"W-x","diameter_mm":900}}  (동선 폭 변경)
 
 규칙:
-- 반드시 방(room) 경계 안에 배치하고, 기존 가구의 box와 겹치지 않도록 좌표를 계산할 것
+- 가구는 반드시 하나의 방(rooms 중 하나) 경계 안에 완전히 들어가도록 좌표를 계산할 것
+- 기존 가구의 box와 겹치지 않게 배치할 것
 - 문 개폐 구역(zone)과 창문 앞 구역은 비워둘 것
-- 동선(pipes)은 축에 평행한 직교 구간으로 구성
 - 존재하는 id만 참조할 것
 
 순수 JSON만 출력 (코드블록 금지):
@@ -44,6 +42,8 @@ PROMPT = """당신은 1인 주택(원룸) 가구 배치 CAD 어시스턴트입�
 def _brief(scene: Scene) -> str:
     return json.dumps({
         "room": scene.meta.room.model_dump(),
+        "rooms": [{"id": r.id, "name": r.name, "box": r.box.model_dump()}
+                  for r in scene.rooms],
         "equipment": [{"id": e.id, "type": e.type, "box": e.box.model_dump()}
                       for e in scene.equipment],
         "structures": [{"id": s.id, "type": s.type, "box": s.box.model_dump()}

@@ -205,6 +205,30 @@ class Inspector:
                     -over * MM, 0.0, g.midpoint(emin, emax),
                     f"{eq.id} exits the room boundary by {over * MM:.0f} mm")
 
+    def check_room_containment(self) -> None:
+        """Furniture must sit fully inside one room (not straddle walls/gaps)."""
+        rooms = self.scene.rooms
+        if not rooms:
+            return
+        for eq in self.scene.equipment:
+            self.checks_run += 1
+            emin, emax = _box(eq.box)
+            best = None  # (overhang_m, room) for the best-fitting room
+            for r in rooms:
+                rmin, rmax = _box(r.box)
+                overhang = max(max(rmin[i] - emin[i], emax[i] - rmax[i], 0.0)
+                               for i in range(2))  # x/y only; rooms are full height
+                if best is None or overhang < best[0]:
+                    best = (overhang, r)
+            over, room = best
+            if over > 1e-9:
+                self._report(
+                    "OUT_OF_ROOM", "HIGH",
+                    _subject(eq, "equipment"),
+                    {"id": room.id, "name": room.name, "kind": "room"},
+                    -over * MM, 0.0, g.midpoint(emin, emax),
+                    f"{eq.id}이(가) {room.name} 영역을 {over * MM:.0f} mm 벗어남")
+
     # ---------------- entry ----------------
     def run(self) -> dict[str, Any]:
         self.check_pipes_vs_structures()
@@ -212,6 +236,7 @@ class Inspector:
         self.check_pipes_vs_pipes()
         self.check_equipment_overlaps()
         self.check_maintenance_space()
+        self.check_room_containment()
         self.check_bounds()
         by_sev = {"HIGH": 0, "MEDIUM": 0}
         for v in self.violations:

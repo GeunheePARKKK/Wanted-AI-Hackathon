@@ -239,14 +239,7 @@
         <option value="washing_machine">세탁기</option>
         <option value="table">테이블</option>
       </select>
-      <div class="tool-row">
-        <button id="add-obj">+ 가구 추가</button>
-        <button id="add-pipe">+ 동선 추가</button>
-      </div>
-      <div class="tool-row" style="align-items:center">
-        <label style="font-size:11px;color:#8b949e;white-space:nowrap">동선 폭(mm)</label>
-        <input id="pipe-dia" type="number" value="600" min="400" max="1500" />
-      </div>
+      <button id="add-obj">+ 가구 추가</button>
       <button id="del-obj">🗑 선택 항목 삭제</button>
     </div>
     <h2>Properties</h2>
@@ -263,13 +256,13 @@
       <button id="prop-apply">✓ 적용</button>
     </div>
     <h2>가구 (Furniture)</h2><div id="list-equipment"></div>
-    <h2>동선 (Walkways)</h2><div id="list-pipes"></div>
+    <h2 id="pipes-header" style="display:none">동선</h2><div id="list-pipes"></div>
     <h2>구조/구역</h2><div id="list-structures"></div>
   </div>
   <div id="viewport">
     <canvas id="canvas3d"></canvas>
     <div id="tooltip"></div>
-    <div id="hint">드래그: 회전 · 휠: 줌 · 클릭: 선택+이동기즈모 · 동선 선택 후 노란점 드래그: 경로 수정 · 더블클릭: 점 추가 · Shift+클릭: 점 삭제</div>
+    <div id="hint">드래그: 회전 · 휠: 줌 · 클릭: 선택 후 화살표 드래그로 이동 (Ctrl+Z 실행취소)</div>
     <button id="chat-fab" title="설계 도우미에게 질문하기">💬</button>
     <div id="chatbox" hidden>
       <div id="chat-head">🛟 배치 도우미 <span style="font-weight:400;color:#8b949e;font-size:11px">· 가구 배치, 인테리어 상식, 사용법 질문</span><span id="chat-close">✕</span></div>
@@ -554,7 +547,8 @@ function addBox(obj, type, listContainer, materialColor) {
     new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }));
   mesh.add(edges);
   register(obj.id, obj.name, mesh, listContainer, materialColor, type);
-  addLabel(obj.id, mesh.position.clone().add(new THREE.Vector3(0, 0, size[2] / 2 + 0.35)));
+  if (type !== 'wall' && type !== 'deck')
+    addLabel(obj.id, mesh.position.clone().add(new THREE.Vector3(0, 0, size[2] / 2 + 0.35)));
   return mesh;
 }
 
@@ -699,12 +693,29 @@ async function loadScene() {
 
   const data = await (await fetch('/api/scene')).json();
   sceneData = data;
+  document.getElementById('pipes-header').style.display = (data.pipes && data.pipes.length) ? '' : 'none';
   objIndex = new Map();
   for (const s of data.structures) objIndex.set(s.id, { kind: 'structure', ref: s });
   for (const eq of data.equipment) objIndex.set(eq.id, { kind: 'equipment', ref: eq });
   for (const p of data.pipes) objIndex.set(p.id, { kind: 'pipe', ref: p });
   document.getElementById('scene-name').textContent = data.meta.name;
   addRoom(data.meta.room);
+  const ROOM_COLORS = [0x4dabf7, 0xda77f2, 0x69db7c, 0xffa94d];
+  (data.rooms || []).forEach((r, i) => {
+    const c = ROOM_COLORS[i % ROOM_COLORS.length];
+    const w = r.box.max[0] - r.box.min[0], d = r.box.max[1] - r.box.min[1];
+    const plate = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, d),
+      new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.07, depthWrite: false }));
+    plate.position.set(r.box.min[0] + w / 2, r.box.min[1] + d / 2, 0.02);
+    root.add(plate);
+    const outline = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.PlaneGeometry(w, d)),
+      new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.5 }));
+    outline.position.copy(plate.position);
+    root.add(outline);
+    addLabel(r.name, new THREE.Vector3(plate.position.x, r.box.max[1] - 0.35, 0.05));
+  });
   for (const s of data.structures) addBox(s, s.type, 'list-structures', COLORS[s.type] ?? 0x555555);
   for (const eq of data.equipment) addBox(eq, eq.type, 'list-equipment', COLORS[eq.type] ?? 0x888888);
   for (const p of data.pipes) addPipe(p);
@@ -924,22 +935,6 @@ document.getElementById('add-obj').onclick = async () => {
   const obj = { id, name: id, type, box: {
     min: [cx - sx / 2, cy - sy / 2, 0], max: [cx + sx / 2, cy + sy / 2, sz] } };
   sceneData.equipment.push(obj);
-  await commitEdit(id);
-  select(id, true);
-};
-
-document.getElementById('add-pipe').onclick = async () => {
-  const dia = parseFloat(document.getElementById('pipe-dia').value) || 80;
-  let n = 1;
-  while (objIndex.has(`W-${n}`)) n++;
-  const id = `W-${n}`;
-  const r = sceneData.meta.room;
-  const cy = (r.min[1] + r.max[1]) / 2;
-  const x0 = r.min[0] + 1, x1 = r.max[0] - 1, step = (x1 - x0) / 3;
-  sceneData.pipes.push({
-    id, name: id, system: 'walkway', diameter_mm: dia, from: null, to: null,
-    path: [0, 1, 2, 3].map(i => [x0 + step * i, cy, 0.4]),
-  });
   await commitEdit(id);
   select(id, true);
 };
