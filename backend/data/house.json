@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "name": "1인 주택 (거실·침실·서재, 9.0m x 6.0m)",
+    "units": "m",
+    "up_axis": "z",
+    "room": { "min": [0, 0, 0], "max": [9.0, 6.0, 2.4] }
+  },
+  "rules": {
+    "min_pipe_clearance_mm": 50,
+    "min_pipe_to_pipe_clearance_mm": 0,
+    "default_maintenance_clearance_mm": 600
+  },
+  "structures": [
+    { "id": "floor", "name": "바닥", "type": "deck", "box": { "min": [0, 0, -0.1], "max": [9.0, 6.0, 0] } },
+    { "id": "wall_a", "name": "내벽 A (서재쪽 하단)", "type": "wall", "box": { "min": [4.425, 0, 0], "max": [4.575, 0.8, 2.4] } },
+    { "id": "wall_b", "name": "내벽 B (중앙)", "type": "wall", "box": { "min": [4.425, 1.7, 0], "max": [4.575, 3.8, 2.4] } },
+    { "id": "wall_c", "name": "내벽 C (침실쪽 상단)", "type": "wall", "box": { "min": [4.425, 4.9, 0], "max": [4.575, 6.0, 2.4] } },
+    { "id": "wall_d", "name": "내벽 D (침실-서재 사이)", "type": "wall", "box": { "min": [4.575, 2.925, 0], "max": [9.0, 3.075, 2.4] } },
+    { "id": "entrance_swing", "name": "현관문 개폐 구역", "type": "zone", "box": { "min": [0, 2.6, 0], "max": [0.9, 3.5, 2.1] } },
+    { "id": "bedroom_door_swing", "name": "침실문 개폐 구역", "type": "zone", "box": { "min": [4.575, 3.8, 0], "max": [5.475, 4.9, 2.1] } },
+    { "id": "study_door_swing", "name": "서재문 개폐 구역", "type": "zone", "box": { "min": [4.575, 0.8, 0], "max": [5.475, 1.7, 2.1] } },
+    { "id": "living_window", "name": "거실 창문 앞 구역", "type": "zone", "box": { "min": [1.5, 5.5, 0], "max": [3.5, 6.0, 2.4] } },
+    { "id": "bedroom_window", "name": "침실 창문 앞 구역", "type": "zone", "box": { "min": [8.5, 3.9, 0], "max": [9.0, 5.4, 2.4] } }
+  ],
+  "equipment": [
+    {
+      "id": "sofa", "name": "소파 (거실)", "type": "sofa",
+      "box": { "min": [2.0, 2.75, 0], "max": [3.8, 3.6, 0.8] }
+    },
+    {
+      "id": "tv_stand", "name": "TV장 (거실)", "type": "tv_stand",
+      "box": { "min": [3.9, 2.0, 0], "max": [4.5, 2.4, 0.5] }
+    },
+    {
+      "id": "table", "name": "테이블 (거실)", "type": "table",
+      "box": { "min": [1.5, 4.0, 0], "max": [2.7, 4.8, 0.72] }
+    },
+    {
+      "id": "fridge", "name": "냉장고 (주방)", "type": "fridge",
+      "box": { "min": [0.1, 5.2, 0], "max": [0.8, 5.9, 1.8] }
+    },
+    {
+      "id": "washing_machine", "name": "세탁기 (주방)", "type": "washing_machine",
+      "box": { "min": [0.85, 5.3, 0], "max": [1.45, 5.9, 0.85] }
+    },
+    {
+      "id": "bed", "name": "침대 (침실)", "type": "bed",
+      "box": { "min": [6.9, 4.85, 0], "max": [8.9, 5.95, 0.5] }
+    },
+    {
+      "id": "wardrobe", "name": "옷장 (침실)", "type": "wardrobe",
+      "box": { "min": [4.6, 4.75, 0], "max": [5.8, 5.35, 2.0] }
+    },
+    {
+      "id": "desk", "name": "책상 (서재)", "type": "desk",
+      "box": { "min": [5.0, 0.1, 0], "max": [6.2, 0.7, 0.75] },
+      "maintenance_clearance_mm": 750
+    },
+    {
+      "id": "bookshelf", "name": "책장 (서재)", "type": "bookshelf",
+      "box": { "min": [5.9, 1.1, 0], "max": [6.7, 1.4, 1.8] }
+    }
+  ],
+  "pipes": [
+    {
+      "id": "W-1", "name": "동선: 현관→침실",
+      "system": "walkway", "diameter_mm": 600,
+      "from": null, "to": "bed",
+      "path": [
+        [0.6, 3.0, 0.4],
+        [3.8, 3.0, 0.4],
+        [3.8, 4.35, 0.4],
+        [6.6, 4.35, 0.4]
+      ]
+    },
+    {
+      "id": "W-2", "name": "동선: 현관→서재",
+      "system": "walkway", "diameter_mm": 600,
+      "from": null, "to": "desk",
+      "path": [
+        [0.6, 3.0, 0.4],
+        [1.2, 3.0, 0.4],
+        [1.2, 1.25, 0.4],
+        [5.2, 1.25, 0.4]
+      ]
+    }
+  ]
+}

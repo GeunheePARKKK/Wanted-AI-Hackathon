@@ -312,9 +312,9 @@ scene.background = new THREE.Color(0x0d1117);
 scene.fog = new THREE.Fog(0x0d1117, 40, 90);
 
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 200);
-camera.position.set(7.5, 6, 7.5);
+camera.position.set(11, 9, 10);
 const controls = new OrbitControls(camera, canvas);
-controls.target.set(2.7, 1, -1.8);
+controls.target.set(4.5, 1, -3);
 controls.enableDamping = true;
 
 // ---------- Transform gizmo (editing) ----------
@@ -366,7 +366,7 @@ const COLORS = {
   bed: 0x3d7bd9, wardrobe: 0x8d6e63, desk: 0xd9822b, sofa: 0x2e9e5b,
   fridge: 0x9aa5b1, bookshelf: 0xb08968, tv_stand: 0x5a6572,
   washing_machine: 0x74c0fc, table: 0xc79a5b,
-  deck: 0x30363d, zone: 0xd29922, walkway: 0x4dabf7,
+  deck: 0x30363d, zone: 0xd29922, walkway: 0x4dabf7, wall: 0x6b7684,
 };
 const matFor = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.25 });
 

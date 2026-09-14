@@ -158,9 +158,8 @@ class Inspector:
             if req is None:
                 continue
             emin, emax = _box(eq.box)
-            others = [(o, "equipment") for o in self.scene.equipment if o.id != eq.id] + \
-                     [(s, "structure") for s in self.scene.structures
-                      if s.type not in ("deck", "zone")]
+            # furniture blocks access; walls don't count (desks normally sit against walls)
+            others = [(o, "equipment") for o in self.scene.equipment if o.id != eq.id]
             for other, kind in others:
                 self.checks_run += 1
                 omin, omax = _box(other.box)

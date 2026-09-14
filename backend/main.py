@@ -20,7 +20,7 @@ from backend.resolver import apply_action, resolve_violation
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
-DATA_FILE = BASE_DIR / "data" / "studio.json"
+DATA_FILE = BASE_DIR / "data" / "house.json"
 
 app = FastAPI(title="AI Home Layout Debugger")
 
