@@ -391,13 +391,13 @@ function register(id, name, mesh, listContainer, colorHex, sub = '') {
 let selectedId = null;
 function select(id, focusCamera = false) {
   if (selectedId && registry.has(selectedId)) {
-    registry.get(selectedId).meshes.forEach(m => m.material.emissive?.setHex(m.userData.baseEmissive ?? 0x000000));
+    registry.get(selectedId).meshes.forEach(m => m.material?.emissive?.setHex(m.userData.baseEmissive ?? 0x000000));
     registry.get(selectedId).listEl.classList.remove('selected');
   }
   selectedId = id;
   if (!id || !registry.has(id)) return;
   const entry = registry.get(id);
-  entry.meshes.forEach(m => m.material.emissive?.setHex(0x2255ff));
+  entry.meshes.forEach(m => m.material?.emissive?.setHex(0x2255ff));
   entry.listEl.classList.add('selected');
   entry.listEl.scrollIntoView({ block: 'nearest' });
   if (focusCamera) {
@@ -529,9 +529,110 @@ function nextId(prefix) {
 }
 
 // ---------- Builders ----------
+function shade(hex, f) {
+  const c = new THREE.Color(hex);
+  c.r = Math.min(1, c.r * f); c.g = Math.min(1, c.g * f); c.b = Math.min(1, c.b * f);
+  return c.getHex();
+}
+
+// small helper: axis-aligned part inside a furniture group (local Z-up, origin = box center)
+function part(g, w, d, h, x, y, z, color) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, d, h), matFor(color));
+  m.position.set(x, y, z);
+  g.add(m);
+  return m;
+}
+
+// procedural furniture models; visuals stay inside the collision AABB (front = -Y)
+const FURNITURE_BUILDERS = {
+  bed(g, [w, d, h], c) {
+    part(g, w, d, h * 0.4, 0, 0, -h * 0.3, shade(c, 0.55));           // frame
+    part(g, w * 0.97, d * 0.94, h * 0.38, 0, 0, -h * 0.01, shade(c, 1.3)); // mattress
+    part(g, w * 0.9, d * 0.88, h * 0.14, w * 0.06, 0, h * 0.22, 0xdee2e6); // duvet
+    part(g, w * 0.16, d * 0.62, h * 0.18, -w * 0.33, 0, h * 0.3, 0xf8f9fa); // pillow
+    part(g, w * 0.05, d, h, -w * 0.475, 0, 0, shade(c, 0.45));        // headboard
+  },
+  wardrobe(g, [w, d, h], c) {
+    part(g, w, d * 0.96, h, 0, d * 0.02, 0, c);                        // body
+    part(g, w * 0.46, d * 0.05, h * 0.94, -w * 0.24, -d * 0.485, 0, shade(c, 1.25)); // door L
+    part(g, w * 0.46, d * 0.05, h * 0.94, w * 0.24, -d * 0.485, 0, shade(c, 1.25));  // door R
+    part(g, w * 0.025, d * 0.05, h * 0.12, -w * 0.045, -d * 0.5, 0, 0x30363d); // handles
+    part(g, w * 0.025, d * 0.05, h * 0.12, w * 0.045, -d * 0.5, 0, 0x30363d);
+  },
+  desk(g, [w, d, h], c) {
+    part(g, w, d, h * 0.1, 0, 0, h * 0.45, shade(c, 1.15));            // top
+    for (const sx of [-1, 1]) for (const sy of [-1, 1])
+      part(g, w * 0.06, d * 0.1, h * 0.9, sx * w * 0.44, sy * d * 0.4, -h * 0.05, shade(c, 0.6));
+  },
+  table(g, s, c) { FURNITURE_BUILDERS.desk(g, s, c); },
+  sofa(g, [w, d, h], c) {
+    part(g, w, d, h * 0.42, 0, 0, -h * 0.29, shade(c, 0.75));          // base
+    part(g, w, d * 0.28, h * 0.8, 0, d * 0.36, h * 0.1, shade(c, 0.9)); // backrest
+    part(g, w * 0.12, d, h * 0.62, -w * 0.44, 0, -h * 0.19, shade(c, 0.85)); // arms
+    part(g, w * 0.12, d, h * 0.62, w * 0.44, 0, -h * 0.19, shade(c, 0.85));
+    part(g, w * 0.34, d * 0.6, h * 0.18, -w * 0.185, -d * 0.12, 0, shade(c, 1.35)); // cushions
+    part(g, w * 0.34, d * 0.6, h * 0.18, w * 0.185, -d * 0.12, 0, shade(c, 1.35));
+  },
+  fridge(g, [w, d, h], c) {
+    part(g, w, d, h, 0, 0, 0, shade(c, 1.05));                         // body
+    part(g, w, d * 0.04, h * 0.015, 0, -d * 0.49, h * 0.2, 0x21262d);  // door split
+    part(g, w * 0.07, d * 0.06, h * 0.24, -w * 0.36, -d * 0.5, h * 0.34, 0x343a40); // handles
+    part(g, w * 0.07, d * 0.06, h * 0.32, -w * 0.36, -d * 0.5, -h * 0.1, 0x343a40);
+  },
+  bookshelf(g, [w, d, h], c) {
+    part(g, w * 0.06, d, h, -w * 0.47, 0, 0, shade(c, 0.7));           // sides
+    part(g, w * 0.06, d, h, w * 0.47, 0, 0, shade(c, 0.7));
+    part(g, w, d, h * 0.05, 0, 0, h * 0.475, shade(c, 0.7));           // top/bottom
+    part(g, w, d, h * 0.05, 0, 0, -h * 0.475, shade(c, 0.7));
+    part(g, w * 0.88, d * 0.12, h * 0.9, 0, d * 0.42, 0, shade(c, 0.45)); // back panel
+    for (const z of [-0.24, 0, 0.24])
+      part(g, w * 0.88, d * 0.78, h * 0.04, 0, d * 0.05, h * z, shade(c, 1.15)); // shelves
+  },
+  tv_stand(g, [w, d, h], c) {
+    part(g, w, d, h * 0.5, 0, 0, -h * 0.25, c);                        // cabinet
+    part(g, w * 0.1, d * 0.24, h * 0.08, 0, d * 0.15, h * 0.04, 0x30363d); // neck
+    part(g, w * 0.8, d * 0.1, h * 0.4, 0, d * 0.15, h * 0.28, 0x0b0e13);  // screen
+  },
+  washing_machine(g, [w, d, h], c) {
+    part(g, w, d, h, 0, 0, 0, 0xdde1e6);                               // body
+    part(g, w * 0.94, d * 0.05, h * 0.14, 0, -d * 0.49, h * 0.39, 0x343a40); // control panel
+    const r = Math.min(w, h) * 0.3;
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.02, 24), matFor(0x343a40));
+    ring.position.set(0, -d / 2 - 0.005, -h * 0.06);
+    g.add(ring);
+    const glass = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.68, r * 0.68, 0.03, 24), matFor(0x1c2733));
+    glass.position.set(0, -d / 2 - 0.008, -h * 0.06);
+    g.add(glass);
+  },
+};
+
 function addBox(obj, type, listContainer, materialColor) {
   const { min, max } = obj.box;
   const size = [max[0] - min[0], max[1] - min[1], max[2] - min[2]];
+  const center = [min[0] + size[0] / 2, min[1] + size[1] / 2, min[2] + size[2] / 2];
+
+  if (FURNITURE_BUILDERS[type]) {
+    const g = new THREE.Group();
+    g.position.set(...center);
+    g.userData = { id: obj.id, name: obj.name };
+    root.add(g);
+    register(obj.id, obj.name, g, listContainer, materialColor, type); // group first (gizmo target)
+    FURNITURE_BUILDERS[type](g, size, materialColor);
+    // faint collision-box outline
+    g.add(new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(...size)),
+      new THREE.LineBasicMaterial({ color: materialColor, transparent: true, opacity: 0.3 })));
+    for (const ch of g.children) {
+      if (ch.isMesh) {
+        ch.userData = { id: obj.id, name: obj.name };
+        pickables.push(ch);
+        registry.get(obj.id).meshes.push(ch);
+      }
+    }
+    addLabel(obj.id, g.position.clone().add(new THREE.Vector3(0, 0, size[2] / 2 + 0.35)));
+    return g;
+  }
+
   const geo = new THREE.BoxGeometry(...size);
   const mat = matFor(materialColor);
   if (type === 'zone') {   // keep-clear zones render as translucent volumes
@@ -539,7 +640,7 @@ function addBox(obj, type, listContainer, materialColor) {
     mat.opacity = 0.15;
   }
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(min[0] + size[0] / 2, min[1] + size[1] / 2, min[2] + size[2] / 2);
+  mesh.position.set(...center);
   root.add(mesh);
   // edge outline
   const edges = new THREE.LineSegments(
@@ -730,7 +831,7 @@ function setViolationHighlight(id, on) {
   if (!entry) return;
   entry.meshes.forEach(m => {
     m.userData.baseEmissive = on ? 0x991111 : 0x000000;
-    if (selectedId !== id) m.material.emissive?.setHex(m.userData.baseEmissive);
+    if (selectedId !== id) m.material?.emissive?.setHex(m.userData.baseEmissive);
   });
 }
 
