@@ -27,6 +27,7 @@ PROMPT = """당신은 1인 주택(거실·침실·서재) 가구 배치 CAD 어�
 사용 가능한 작업(ops) 목록:
 - {{"op":"add_equipment","type":"bed|wardrobe|desk|sofa|fridge|bookshelf|tv_stand|washing_machine|table","center":[x,y]}}
 - {{"op":"move","id":"<객체id>","delta":[dx,dy,dz]}}
+- {{"op":"rotate","id":"<가구id>"}}  (제자리 90° 회전)
 - {{"op":"delete","id":"<객체id>"}}
 
 규칙:
@@ -107,6 +108,18 @@ def _apply_op(s: Scene, op: dict) -> str:
             o.box.min = [o.box.min[i] + d[i] for i in range(3)]
             o.box.max = [o.box.max[i] + d[i] for i in range(3)]
         return f"{op['id']} 이동"
+    if k == "rotate":
+        o, kind, _ = _find(s, op["id"])
+        if kind != "equipment":
+            raise ValueError(f"{op['id']}는 회전할 수 없습니다")
+        cx = (o.box.min[0] + o.box.max[0]) / 2
+        cy = (o.box.min[1] + o.box.max[1]) / 2
+        w = o.box.max[0] - o.box.min[0]
+        d = o.box.max[1] - o.box.min[1]
+        o.box.min = [cx - d / 2, cy - w / 2, o.box.min[2]]
+        o.box.max = [cx + d / 2, cy + w / 2, o.box.max[2]]
+        o.rotation = (getattr(o, "rotation", 0) + 90) % 360
+        return f"{op['id']} 90° 회전"
     if k == "delete":
         o, _, coll = _find(s, op["id"])
         coll.remove(o)

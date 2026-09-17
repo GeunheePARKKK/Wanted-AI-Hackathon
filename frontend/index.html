@@ -188,6 +188,33 @@
   }
   #autofix-btn:hover { background: #6e40c944; }
   #autofix-btn:disabled { opacity: 0.5; cursor: wait; }
+  #report-btn {
+    width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #30363d; border-radius: 6px;
+    background: #21262d; color: #e6edf3; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  #report-btn:hover { background: #30363d; }
+  #report-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #report-box {
+    width: min(920px, 94vw); height: 86vh; background: #fff; border-radius: 10px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  #report-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 14px; background: #161b22; color: #e6edf3; font-size: 13px; font-weight: 600;
+  }
+  #report-close {
+    background: #21262d; border: 1px solid #30363d; color: #e6edf3;
+    border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: 12px;
+  }
+  #report-frame { flex: 1; border: 0; background: #fff; }
+  #prop-rotate {
+    padding: 6px; font-size: 12px; border-radius: 6px; cursor: pointer;
+    background: #21262d; border: 1px solid #30363d; color: #e6edf3;
+  }
+  #prop-rotate:hover { background: #30363d; }
   #cmd-row { display: flex; gap: 6px; margin-bottom: 8px; }
   #cmd-input {
     flex: 1; padding: 8px; background: #0d1117; color: #e6edf3;
@@ -253,6 +280,7 @@
         <label class="prop-row">세로 D(m) <input id="prop-sy" type="number" step="0.1" min="0.1" /></label>
         <label class="prop-row">높이 H(m) <input id="prop-sz" type="number" step="0.1" min="0.1" /></label>
       </div>
+      <button id="prop-rotate" style="display:none">↻ 90° 회전 (R)</button>
       <button id="prop-apply">✓ 적용</button>
     </div>
     <h2>가구 (Furniture)</h2><div id="list-equipment"></div>
@@ -285,6 +313,7 @@
     <h2>Design Verification</h2>
     <button id="inspect-btn">🔍 배치 검사 실행</button>
     <button id="autofix-btn">🤖 전체 자동 수정 (Agent)</button>
+    <button id="report-btn">📄 검토 리포트</button>
     <div id="summary"></div>
     <div id="no-errors">✅ 위반 사항 없음</div>
     <div id="err-list"></div>
@@ -425,6 +454,7 @@ function updatePropsPanel(id) {
   document.getElementById('prop-id').value = info.ref.id;
   document.getElementById('prop-name').value = info.ref.name;
   const isPipe = info.kind === 'pipe';
+  document.getElementById('prop-rotate').style.display = info.kind === 'equipment' ? '' : 'none';
   document.getElementById('prop-dia-row').style.display = isPipe ? 'flex' : 'none';
   document.getElementById('prop-size-rows').style.display = isPipe ? 'none' : 'block';
   if (isPipe) {
@@ -436,6 +466,19 @@ function updatePropsPanel(id) {
     document.getElementById('prop-sz').value = (b.max[2] - b.min[2]).toFixed(2);
   }
 }
+
+async function rotateSelected() {
+  const info = selectedId ? objIndex.get(selectedId) : null;
+  if (!info || info.kind !== 'equipment') return;
+  const b = info.ref.box;
+  const cx = (b.min[0] + b.max[0]) / 2, cy = (b.min[1] + b.max[1]) / 2;
+  const w = b.max[0] - b.min[0], d = b.max[1] - b.min[1];
+  b.min = [cx - d / 2, cy - w / 2, b.min[2]];
+  b.max = [cx + d / 2, cy + w / 2, b.max[2]];
+  info.ref.rotation = ((info.ref.rotation || 0) + 90) % 360;
+  await commitEdit(selectedId);
+}
+document.getElementById('prop-rotate').onclick = rotateSelected;
 
 document.getElementById('prop-apply').onclick = async () => {
   if (!selectedId) return;
@@ -614,13 +657,17 @@ function addBox(obj, type, listContainer, materialColor) {
   if (FURNITURE_BUILDERS[type]) {
     const g = new THREE.Group();
     g.position.set(...center);
+    const rot = obj.rotation || 0;
+    g.rotation.z = rot * Math.PI / 180;
+    // stored box is the world AABB; the model is built with its natural (unrotated) dims
+    const natural = (rot % 180) ? [size[1], size[0], size[2]] : size;
     g.userData = { id: obj.id, name: obj.name };
     root.add(g);
     register(obj.id, obj.name, g, listContainer, materialColor, type); // group first (gizmo target)
-    FURNITURE_BUILDERS[type](g, size, materialColor);
-    // faint collision-box outline
+    FURNITURE_BUILDERS[type](g, natural, materialColor);
+    // faint collision-box outline (in natural dims; rotates with the group)
     g.add(new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.BoxGeometry(...size)),
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(...natural)),
       new THREE.LineBasicMaterial({ color: materialColor, transparent: true, opacity: 0.3 })));
     for (const ch of g.children) {
       if (ch.isMesh) {
@@ -865,11 +912,18 @@ async function runInspection() {
   const res = await (await fetch('/api/inspect')).json();
   const { summary, violations } = res;
 
+  const sc = summary.score;
+  const scColor = sc >= 100 ? '#3fb950' : sc >= 70 ? '#d29922' : '#f85149';
   document.getElementById('summary').innerHTML = `
     <div class="stat"><b>${summary.checks_run}</b><span>검사</span></div>
     <div class="stat ok"><b>${summary.passed}</b><span>통과</span></div>
-    <div class="stat bad"><b>${summary.violations}</b><span>위반</span></div>`;
-  document.getElementById('no-errors').style.display = violations.length ? 'none' : 'block';
+    <div class="stat bad"><b>${summary.violations}</b><span>위반</span></div>
+    <div class="stat"><b style="color:${scColor}">${sc}</b><span>점수</span></div>`;
+  const ne = document.getElementById('no-errors');
+  ne.style.display = violations.length ? 'none' : 'block';
+  if (!violations.length)
+    ne.innerHTML = '🏆 <b>배치 승인 가능</b> — 모든 검사 통과 (100점)<br>' +
+                   '<span style="font-size:11px;color:#8b949e">📄 검토 리포트에서 수정 이력을 확인하세요</span>';
 
   // reset previous highlights/markers
   registry.forEach((_, id) => setViolationHighlight(id, false));
@@ -946,7 +1000,7 @@ async function applyCandidate(cand) {
   await fetch('/api/apply', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(cand.action),
+    body: JSON.stringify({ action: cand.action, description: cand.description }),
   });
   clearGhosts();
   await loadScene();
@@ -1069,6 +1123,7 @@ document.getElementById('undo-btn').onclick = doUndo;
 document.getElementById('redo-btn').onclick = doRedo;
 window.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT') return;
+  if (!e.ctrlKey && e.key.toLowerCase() === 'r') { e.preventDefault(); rotateSelected(); return; }
   if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'z') { e.preventDefault(); doUndo(); }
   if (e.ctrlKey && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) { e.preventDefault(); doRedo(); }
 });
@@ -1094,6 +1149,58 @@ document.getElementById('autofix-btn').onclick = async (e) => {
     btn.textContent = '🤖 전체 자동 수정 (Agent)';
   }
   await refresh();
+};
+
+// ---------- Review report ----------
+document.getElementById('report-btn').onclick = async () => {
+  const r = await (await fetch('/api/report')).json();
+  const s = r.summary;
+  const sevKo = { HIGH: '높음', MEDIUM: '중간' };
+  const kindKo = { edit: '수동 편집', fix: '해결안 적용', agent: 'AI 자동 수정', copilot: 'AI 명령', undo: '실행취소', redo: '재실행', save: '저장' };
+  const vRows = r.violations.length
+    ? r.violations.map(v => `<tr><td>${v.id}</td><td>${sevKo[v.severity] || v.severity}</td><td>${v.code}</td><td>${v.detail}</td><td style="text-align:right">${v.measured_mm} / ${v.required_mm} mm</td></tr>`).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:#2b8a3e"><b>잔여 위반 없음 — 배치 승인 가능</b></td></tr>';
+  const hRows = r.history.length
+    ? r.history.map(h => `<tr><td>${h.time}</td><td>${kindKo[h.kind] || h.kind}</td><td>${h.text}</td></tr>`).join('')
+    : '<tr><td colspan="3" style="color:#868e96">이번 세션의 수정 이력이 없습니다</td></tr>';
+  const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>배치 검토 리포트</title>
+<style>
+ body{font-family:'Segoe UI',sans-serif;max-width:860px;margin:32px auto;padding:0 24px;color:#212529}
+ h1{font-size:22px;border-bottom:2px solid #212529;padding-bottom:8px} h2{font-size:15px;margin-top:28px}
+ table{width:100%;border-collapse:collapse;font-size:12.5px} th,td{border:1px solid #dee2e6;padding:6px 9px;text-align:left}
+ th{background:#f1f3f5} .meta{color:#868e96;font-size:12px}
+ .score{font-size:40px;font-weight:800} .cards{display:flex;gap:12px;margin:16px 0}
+ .card{flex:1;border:1px solid #dee2e6;border-radius:8px;padding:14px;text-align:center}
+ .card span{display:block;font-size:11px;color:#868e96;margin-top:2px}
+ .foot{margin-top:32px;font-size:11px;color:#868e96;border-top:1px solid #dee2e6;padding-top:8px}
+ @media print {.noprint{display:none}}
+</style></head><body>
+<h1>🏠 가구 배치 검토 리포트</h1>
+<p class="meta">${r.scene_name} · 생성 ${r.generated} · AI Home Layout Debugger</p>
+<div class="cards">
+ <div class="card"><div class="score" style="color:${s.score >= 100 ? '#2b8a3e' : s.score >= 70 ? '#e8590c' : '#c92a2a'}">${s.score}</div><span>배치 점수</span></div>
+ <div class="card"><div class="score">${s.checks_run}</div><span>검사 항목</span></div>
+ <div class="card"><div class="score" style="color:#2b8a3e">${s.passed}</div><span>통과</span></div>
+ <div class="card"><div class="score" style="color:${s.violations ? '#c92a2a' : '#2b8a3e'}">${s.violations}</div><span>잔여 위반</span></div>
+</div>
+<h2>잔여 위반 사항</h2>
+<table><tr><th>ID</th><th>심각도</th><th>유형</th><th>내용</th><th>실측/요구</th></tr>${vRows}</table>
+<h2>세션 수정 이력</h2>
+<table><tr><th style="width:80px">시각</th><th style="width:110px">구분</th><th>내용</th></tr>${hRows}</table>
+<p class="foot">본 리포트의 모든 수치와 판정은 결정론적 기하 검증 엔진의 출력입니다 (AI는 설명에만 관여).
+ 점수 = 100 − (높음 위반 × 15) − (중간 위반 × 7)</p>
+<button class="noprint" onclick="print()" style="margin-top:12px;padding:8px 20px">🖨 인쇄 / PDF 저장</button>
+</body></html>`;
+  document.getElementById('report-overlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'report-overlay';
+  ov.innerHTML = `<div id="report-box">
+    <div id="report-head"><span>📄 배치 검토 리포트</span><button id="report-close">✕ 닫기</button></div>
+    <iframe id="report-frame"></iframe></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#report-close').onclick = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.querySelector('#report-frame').srcdoc = html;
 };
 
 // ---------- Natural-language commands ----------

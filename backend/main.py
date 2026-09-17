@@ -5,6 +5,7 @@ Run:  uvicorn backend.main:app --reload --port 8000
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import Body, FastAPI
@@ -34,6 +35,13 @@ def load_scene() -> Scene:
 WORK: dict[str, Scene] = {"scene": load_scene()}
 UNDO: list[Scene] = []
 REDO: list[Scene] = []
+HISTORY: list[dict] = []
+
+
+def _log(kind: str, text: str) -> None:
+    HISTORY.append({"time": datetime.now().strftime("%H:%M:%S"), "kind": kind, "text": text})
+    if len(HISTORY) > 200:
+        HISTORY.pop(0)
 
 
 def _mutate(new_scene: Scene) -> None:
@@ -54,6 +62,7 @@ def get_scene() -> Scene:
 def update_scene(scene: Scene) -> dict:
     """Replace the working scene (interactive editing) and re-inspect."""
     _mutate(scene)
+    _log("edit", "수동 편집 (가구 이동/회전/추가/삭제/속성 변경)")
     return inspect_scene(scene)
 
 
@@ -90,9 +99,11 @@ def explain(violation_id: str) -> dict:
 
 
 @app.post("/api/apply")
-def apply_fix(action: dict = Body(...)) -> dict:
+def apply_fix(body: dict = Body(...)) -> dict:
     """Apply a fix candidate to the working scene and re-inspect."""
+    action = body.get("action", body)  # accept {action, description} or a bare action
     _mutate(apply_action(WORK["scene"], action))
+    _log("fix", body.get("description") or "해결안 적용")
     return inspect_scene(WORK["scene"])
 
 
@@ -151,6 +162,9 @@ def autofix() -> dict:
 
     if any(s["action"] for s in steps):
         _mutate(scene)
+        fixed = [s for s in steps if s["action"]]
+        _log("agent", f"전체 자동 수정: {len(fixed)}건 해결 — " +
+             " / ".join(s["action"] for s in fixed))
     return {"steps": steps, "inspection": inspect_scene(WORK["scene"])}
 
 
@@ -160,10 +174,24 @@ def command(body: dict = Body(...)) -> dict:
     result = run_command(WORK["scene"], str(body.get("text", ""))[:500])
     if result.get("scene") is not None:
         _mutate(result.pop("scene"))
+        _log("copilot", result.get("reply") or "AI 명령 수행")
     else:
         result.pop("scene", None)
     result["inspection"] = inspect_scene(WORK["scene"])
     return result
+
+
+@app.get("/api/report")
+def report() -> dict:
+    """Data for the layout review report (score, violations, session history)."""
+    ins = inspect_scene(WORK["scene"])
+    return {
+        "scene_name": WORK["scene"].meta.name,
+        "generated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "summary": ins["summary"],
+        "violations": ins["violations"],
+        "history": HISTORY,
+    }
 
 
 @app.post("/api/chat")
@@ -178,6 +206,7 @@ def reset() -> dict:
     """Discard all applied fixes and reload the original design."""
     UNDO.clear()
     REDO.clear()
+    HISTORY.clear()
     WORK["scene"] = load_scene()
     return inspect_scene(WORK["scene"])
 

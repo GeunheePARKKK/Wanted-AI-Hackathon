@@ -23,6 +23,7 @@ AXES = {"x": (1.0, 0.0, 0.0), "y": (0.0, 1.0, 0.0), "z": (0.0, 0.0, 1.0)}
 IMPACT = {
     "offset_pipe_segment": ("동선 경로 조정", 0),
     "move_equipment": ("가구 재배치", 100),
+    "rotate_equipment": ("가구 90° 회전 (제자리)", 0),
     "move_structure": ("구조 요소 이동 — 시공/구조 검토 필요", 3000),
 }
 
@@ -70,6 +71,11 @@ def _apply_action(scene: Scene, action: dict) -> Scene:
     t = action["type"]
     if t == "offset_pipe_segment":
         _find_pipe(s, action["pipe_id"]).path = action["new_path"]
+    elif t == "rotate_equipment":
+        obj, _ = _find_box_obj(s, action["target_id"])
+        obj.box.min = action["new_box"]["min"]
+        obj.box.max = action["new_box"]["max"]
+        obj.rotation = (getattr(obj, "rotation", 0) + action.get("rotation_delta", 90)) % 360
     elif t in ("move_equipment", "move_structure"):
         obj, _ = _find_box_obj(s, action["target_id"])
         obj.box.min = action["new_box"]["min"]
@@ -212,6 +218,34 @@ class Resolver:
             "score": round(mag_m * MM + penalty + introduced * 2000, 1),
         })
 
+    def try_rotation(self, target_id: str) -> None:
+        """In-place 90-degree rotation (AABB width/depth swap around center)."""
+        obj, action_type = _find_box_obj(self.scene, target_id)
+        if obj is None or action_type != "move_equipment":
+            return
+        w = obj.box.max[0] - obj.box.min[0]
+        d = obj.box.max[1] - obj.box.min[1]
+        if abs(w - d) < 1e-9:
+            return  # square footprint: rotation changes nothing
+        cx = (obj.box.min[0] + obj.box.max[0]) / 2
+        cy = (obj.box.min[1] + obj.box.max[1]) / 2
+        action = {
+            "type": "rotate_equipment",
+            "target_id": target_id,
+            "rotation_delta": 90,
+            "new_box": {
+                "min": [cx - d / 2, cy - w / 2, obj.box.min[2]],
+                "max": [cx + d / 2, cy + w / 2, obj.box.max[2]],
+            },
+        }
+        resolves, introduced, n_after = _verify(
+            self.scene, action, self.target_key, self.old_keys)
+        if resolves and introduced == 0:
+            self._add(action, 0.2, f"가구 {target_id}를 제자리에서 90° 회전", n_after, introduced=0)
+        elif resolves:
+            self.relaxed.append((introduced, action, 0.2,
+                                 f"가구 {target_id}를 제자리에서 90° 회전", n_after))
+
     # ---------- entry ----------
     def run(self) -> list[dict[str, Any]]:
         a, b = self.v["a"], self.v["b"]
@@ -221,8 +255,11 @@ class Resolver:
             self.try_pipe_offsets(b["id"])
         if a["kind"] != "pipe":
             self.try_box_moves(a["id"])
-        if b["kind"] != "pipe" and b["id"] != "room":
+        if b["kind"] not in ("pipe", "room") and b["id"] != "room":
             self.try_box_moves(b["id"])
+        for subj in (a, b):
+            if subj["kind"] == "equipment":
+                self.try_rotation(subj["id"])
         # fallback: no perfectly clean fix exists -> offer least-harmful ones
         if not self.candidates and self.relaxed:
             self.relaxed.sort(key=lambda r: (r[0], r[2]))

@@ -45,6 +45,7 @@ class Equipment(BaseModel):
     name: str
     type: str  # pump | engine | heat_exchanger | generator ...
     box: Box
+    rotation: int = 0  # yaw in degrees (0/90/180/270); box is always the world AABB
     maintenance_clearance_mm: float | None = None
 
 

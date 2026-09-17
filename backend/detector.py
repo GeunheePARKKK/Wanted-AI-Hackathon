@@ -241,12 +241,14 @@ class Inspector:
         by_sev = {"HIGH": 0, "MEDIUM": 0}
         for v in self.violations:
             by_sev[v["severity"]] += 1
+        score = max(0, 100 - 15 * by_sev["HIGH"] - 7 * by_sev["MEDIUM"])
         return {
             "summary": {
                 "checks_run": self.checks_run,
                 "violations": len(self.violations),
                 "passed": self.checks_run - len(self.violations),
                 "by_severity": by_sev,
+                "score": score,
             },
             "violations": self.violations,
         }
