@@ -26,7 +26,10 @@ def _box(b) -> tuple[g.Vec3, g.Vec3]:
 
 
 def _subject(obj, kind: str) -> dict[str, Any]:
-    return {"id": obj.id, "name": display_name(obj), "kind": kind}
+    result = {"id": obj.id, "name": display_name(obj), "kind": kind}
+    if hasattr(obj, "type"):
+        result["type"] = obj.type
+    return result
 
 
 class Inspector:

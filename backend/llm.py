@@ -45,16 +45,16 @@ def _load_knowledge() -> dict:
 def retrieve_knowledge(violation: dict) -> dict:
     """RAG-lite: select rules/cases whose tags match the violation."""
     kb = _load_knowledge()
-    keys = {violation["code"], violation["a"]["kind"], violation["b"]["kind"],
-            violation["a"]["id"].split("_")[0], violation["b"]["id"].split("_")[0]}
-    keys = {k.lower() for k in keys} | {violation["code"]}
-
-    def match(item):
-        return any(t == violation["code"] or t.lower() in keys for t in item["tags"])
-
+    specific = {violation["a"].get("type", ""), violation["a"]["id"]}
+    if violation["code"] == "ZONE_INTRUSION":
+        specific.update(violation["b"]["id"].split("_"))
+    relevant = [r for r in kb["rules"] if violation["code"] in r["tags"]]
+    exact = [r for r in relevant if specific.intersection(r["tags"])]
+    cases = [c for c in kb["cases"] if violation["code"] in c["tags"]]
+    cases.sort(key=lambda c: not bool(specific.intersection(c["tags"])))
     return {
-        "rules": [r for r in kb["rules"] if match(r)][:2],
-        "cases": [c for c in kb["cases"] if match(c)][:2],
+        "rules": (exact or relevant)[:2],
+        "cases": cases[:2],
     }
 
 

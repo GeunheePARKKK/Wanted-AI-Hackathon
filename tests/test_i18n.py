@@ -59,3 +59,12 @@ def test_ai_language_and_fallback_are_isolated(client, monkeypatch):
 def test_added_furniture_has_korean_name(demo_scene):
     commands._apply_op(demo_scene, {"op": "add_equipment", "type": "bed", "center": [2, 2]})
     assert demo_scene.equipment[-1].name == "침대 2"
+
+
+@pytest.mark.parametrize("kind,rule", [("fridge", "R-FRIDGE-600"), ("washing_machine", "R-WASH-600"),
+                                      ("bed", "R-BED-300"), ("desk", "R-DESK-750")])
+def test_usage_knowledge_matches_subject_type_not_generic_code(kind, rule):
+    violation = {"code": "USAGE_SPACE",
+                 "a": {"id": "custom-id", "type": kind, "kind": "furniture"},
+                 "b": {"id": "room", "kind": "structure"}}
+    assert [r["id"] for r in llm.retrieve_knowledge(violation)["rules"]] == [rule]

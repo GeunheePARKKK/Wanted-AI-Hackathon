@@ -8,13 +8,13 @@
     },
     {
       "id": "R-DOOR-SWING",
-      "tags": ["ZONE_INTRUSION", "zone", "furniture"],
+      "tags": ["ZONE_INTRUSION", "zone", "furniture", "door", "entrance"],
       "title": "문 개폐 반경 내 가구 배치 금지",
       "content": "현관문·방문·화장실문의 개폐 반경(문 폭만큼의 부채꼴 영역) 안에는 가구를 두면 안 된다. 문이 끝까지 열리지 않으면 출입이 불편하고, 화재 등 비상시 피난에 치명적이다. 이사·가구 반입 시에도 문 개폐 공간이 필요하다."
     },
     {
       "id": "R-WIN-CLEAR",
-      "tags": ["ZONE_INTRUSION", "zone", "furniture"],
+      "tags": ["ZONE_INTRUSION", "zone", "furniture", "window"],
       "title": "창문 앞 확보 구역 (채광·환기·피난)",
       "content": "창문 앞 약 500mm는 비워두는 것이 원칙이다. 큰 가구가 창을 가리면 채광과 환기가 나빠져 곰팡이·결로 위험이 커지고, 화재 시 피난 경로(창)를 막게 된다. 침대 머리맡이 창에 붙으면 겨울철 냉기와 결로수 문제도 생긴다."
     },
