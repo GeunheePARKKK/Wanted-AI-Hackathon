@@ -1,6 +1,6 @@
-"""AI Ship Design Debugger - backend entrypoint.
+"""AI Home Layout Debugger - backend entrypoint.
 
-Run:  uvicorn backend.main:app --reload --port 8000
+Run:  uvicorn backend.main:app --reload --port 8001
 """
 from __future__ import annotations
 

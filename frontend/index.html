@@ -381,7 +381,6 @@ function displayName(obj) {
 const shortName = obj => displayName(obj).replace(/\s*\([^)]*\)\s*$/, '').trim();
 const codeName = code => ({
   HARD_CLASH: t('가구 충돌', 'Collision'), ZONE_INTRUSION: t('금지 구역 침범', 'Zone intrusion'),
-  MAINTENANCE_SPACE: t('사용 공간 부족', 'Insufficient usage space'),
   USAGE_SPACE: t('사용 공간 부족', 'Insufficient usage space'),
   CIRCULATION: t('동선 차단', 'Blocked circulation'),
   OUT_OF_ROOM: t('방 경계 이탈', 'Outside room'), OUT_OF_BOUNDS: t('건물 경계 이탈', 'Outside building'),
@@ -592,8 +591,8 @@ function updatePropsPanel(id) {
   const nameInput = document.getElementById('prop-name');
   nameInput.value = displayName(info.ref);
   nameInput.dataset.displayed = nameInput.value;
-  const isPipe = info.kind === 'pipe';
-  document.getElementById('prop-rotate').style.display = info.kind === 'equipment' ? '' : 'none';
+  const isPipe = info.kind === 'walkway';
+  document.getElementById('prop-rotate').style.display = info.kind === 'furniture' ? '' : 'none';
   document.getElementById('prop-dia-row').style.display = isPipe ? 'flex' : 'none';
   document.getElementById('prop-size-rows').style.display = isPipe ? 'none' : 'block';
   if (isPipe) {
@@ -608,7 +607,7 @@ function updatePropsPanel(id) {
 
 async function rotateSelected() {
   const info = selectedId ? objIndex.get(selectedId) : null;
-  if (!info || info.kind !== 'equipment') return;
+  if (!info || info.kind !== 'furniture') return;
   const b = info.ref.box;
   const cx = (b.min[0] + b.max[0]) / 2, cy = (b.min[1] + b.max[1]) / 2;
   const w = b.max[0] - b.min[0], d = b.max[1] - b.min[1];
@@ -628,7 +627,7 @@ document.getElementById('prop-apply').onclick = async () => {
   if (!newId) { alert(t('ID는 비울 수 없습니다', 'ID cannot be empty')); return; }
   if (newId !== info.ref.id && objIndex.has(newId)) { alert(t(`ID '${newId}'는 이미 사용 중입니다`, `ID '${newId}' is already in use`)); return; }
   // rename: keep pipe from/to references in sync
-  if (newId !== info.ref.id && info.kind === 'equipment') {
+  if (newId !== info.ref.id && info.kind === 'furniture') {
     for (const p of sceneData.pipes) {
       if (p.from === info.ref.id) p.from = newId;
       if (p.to === info.ref.id) p.to = newId;
@@ -638,7 +637,7 @@ document.getElementById('prop-apply').onclick = async () => {
   // Applying dimensions in English must not overwrite the canonical Korean name.
   if (newName && newName !== document.getElementById('prop-name').dataset.displayed)
     info.ref.name = newName;
-  if (info.kind === 'pipe') {
+  if (info.kind === 'walkway') {
     const dia = parseFloat(document.getElementById('prop-dia').value);
     if (dia > 0) info.ref.diameter_mm = dia;
   } else {
@@ -669,7 +668,7 @@ function editTarget(id) {
   if (!id || id === 'deck') return;
   const info = objIndex.get(id);
   if (!info) return;
-  if (info.kind === 'pipe') {
+  if (info.kind === 'walkway') {
     const r = Math.max(info.ref.diameter_mm / 2000 * 1.9, 0.1);
     info.ref.path.forEach((pt, i) => {
       const h = new THREE.Mesh(
@@ -989,8 +988,8 @@ function renderScene(data) {
   document.getElementById('pipes-header').style.display = (data.pipes && data.pipes.length) ? '' : 'none';
   objIndex = new Map();
   for (const s of data.structures) objIndex.set(s.id, { kind: 'structure', ref: s });
-  for (const eq of data.equipment) objIndex.set(eq.id, { kind: 'equipment', ref: eq });
-  for (const p of data.pipes) objIndex.set(p.id, { kind: 'pipe', ref: p });
+  for (const eq of data.equipment) objIndex.set(eq.id, { kind: 'furniture', ref: eq });
+  for (const p of data.pipes) objIndex.set(p.id, { kind: 'walkway', ref: p });
   document.getElementById('scene-name').textContent = sceneName(data.meta.name);
   addRoom(data.meta.room);
   const ROOM_COLORS = [0x4dabf7, 0xda77f2, 0x69db7c, 0xffa94d];
@@ -1304,7 +1303,7 @@ document.getElementById('del-obj').onclick = async () => {
   if (!selectedId || selectedId === 'deck') return;
   const info = objIndex.get(selectedId);
   if (!info) return;
-  const arr = { equipment: sceneData.equipment, structure: sceneData.structures, pipe: sceneData.pipes }[info.kind];
+  const arr = { furniture: sceneData.equipment, structure: sceneData.structures, walkway: sceneData.pipes }[info.kind];
   arr.splice(arr.indexOf(info.ref), 1);
   selectedId = null;
   await commitEdit(null);

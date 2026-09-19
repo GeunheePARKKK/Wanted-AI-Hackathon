@@ -77,7 +77,7 @@ def violation_detail(code: str, a: dict, b: dict, measured: float, required: flo
     if code == "ZONE_INTRUSION":
         return tr(f"{with_particle(an, '이/가')} {with_particle(bn, '을/를')} {abs(measured):.0f} mm 침범",
                   f"{an} intrudes into {bn} by {abs(measured):.0f} mm")
-    if code in ("MAINTENANCE_SPACE", "USAGE_SPACE"):
+    if code == "USAGE_SPACE":
         return tr(f"{an} 사용 공간: {bn}까지 {measured:.0f} mm (필요 {required:.0f} mm)",
                   f"{an} usage space: {measured:.0f} mm to {bn}; {required:.0f} mm required")
     if code in ("OUT_OF_BOUNDS", "OUT_OF_ROOM"):

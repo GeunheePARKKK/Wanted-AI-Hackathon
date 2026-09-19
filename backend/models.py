@@ -1,8 +1,9 @@
-"""Data models for the AI Ship Design Debugger scene."""
+"""Home-layout models with backward-compatible scene JSON aliases."""
 from __future__ import annotations
 
 import math
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
+from typing import Literal
 
 
 Vec3 = list[float]  # [x, y, z] in meters, Z-up
@@ -40,9 +41,9 @@ class Rules(BaseModel):
 class Structure(BaseModel):
     id: str
     name: str
-    type: str  # deck | frame | bulkhead ...
+    type: str  # deck | wall | zone
     box: Box
-    role: str | None = None
+    role: Literal["entrance", "door", "window"] | None = None
 
 
 class Room(BaseModel):
@@ -52,10 +53,10 @@ class Room(BaseModel):
     box: Box
 
 
-class Equipment(BaseModel):
+class Furniture(BaseModel):
     id: str
     name: str
-    type: str  # pump | engine | heat_exchanger | generator ...
+    type: str  # bed | desk | wardrobe | sofa | ...
     box: Box
     rotation: int = 0  # yaw in degrees (0/90/180/270); box is always the world AABB
     maintenance_clearance_mm: float | None = None
@@ -75,7 +76,7 @@ class Equipment(BaseModel):
         return value
 
 
-class Pipe(BaseModel):
+class Walkway(BaseModel):
     id: str
     name: str
     system: str
@@ -92,12 +93,34 @@ class Scene(BaseModel):
     rules: Rules
     rooms: list[Room] = []
     structures: list[Structure]
-    equipment: list[Equipment]
-    pipes: list[Pipe] = []
+    furniture: list[Furniture] = Field(validation_alias=AliasChoices("furniture", "equipment"),
+                                      serialization_alias="equipment")
+    walkways: list[Walkway] = Field(default_factory=list, validation_alias=AliasChoices("walkways", "pipes"),
+                                  serialization_alias="pipes")
+
+    @property
+    def equipment(self) -> list[Furniture]:
+        return self.furniture
+
+    @equipment.setter
+    def equipment(self, value: list[Furniture]) -> None:
+        self.furniture = value
+
+    @property
+    def pipes(self) -> list[Walkway]:
+        return self.walkways
+
+    @pipes.setter
+    def pipes(self, value: list[Walkway]) -> None:
+        self.walkways = value
 
     @model_validator(mode="after")
     def unique_ids(self):
-        ids = [obj.id for obj in self.equipment + self.structures + self.pipes + self.rooms]
+        ids = [obj.id for obj in self.furniture + self.structures + self.walkways + self.rooms]
         if any(not oid or oid == "room" for oid in ids) or len(ids) != len(set(ids)):
             raise ValueError("scene IDs must be unique, non-empty, and not 'room'")
         return self
+
+
+Equipment = Furniture
+Pipe = Walkway

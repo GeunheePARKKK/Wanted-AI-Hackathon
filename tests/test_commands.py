@@ -100,7 +100,7 @@ def test_place_existing_furniture_does_not_add_violations(demo_scene):
 
 
 def test_impossible_place_and_unknown_near_are_explicit(demo_scene):
-    original = demo_scene.model_dump()
+    original = demo_scene.model_dump(by_alias=True)
     with pytest.raises(ValueError, match="near|대상"):
         commands._apply_op(demo_scene, {"op": "place", "id": "bed", "room": "study", "near": "missing"})
     demo_scene.rooms[2].box.max = [5.3, 0.2, 2.4]

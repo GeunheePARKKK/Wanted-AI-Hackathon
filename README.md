@@ -25,11 +25,11 @@ Human Layout → AI Critic → Human Revision
 | | |
 |---|---|
 | **Detect** | 결정론적 기하 엔진이 가구 겹침 / 문 개폐 구역 침범 / 창문 앞 확보 구역 / 동선 폭 / 가구 사용 공간(책상 750mm 등) / 벽 관통 검사 |
-| **Visualize** | Three.js 3D — 위반 하이라이트, 펄스 마커, 반투명 keep-clear 구역, 동선 튜브 |
+| **Visualize** | Three.js 3D — 위반 하이라이트, 사용 공간 사각형, 자동 계산된 동선 |
 | **Recommend** | 해결안 후보를 기하적으로 생성 → **전체 재검증 통과분만** A/B안 제시 + 고스트 미리보기 |
 | **Explain + Learn** | LLM이 인체공학 규칙 + 배치 사례 KB 기반으로 원인/영향/추천 근거를 생활 언어로 설명 |
-| **Agent** | 전체 자동 수정 — 위반 4건을 ~3초에 자율 해결 (진동 방지 가드 포함) |
-| **Copilot** | 자연어 배치 명령 ("책상을 창가로 옮겨줘") |
+| **Agent** | 기본 데모 9건 → 0건·100점, 새 위반 없는 후보만 적용 (5초 이내 회귀 검사) |
+| **Copilot** | 자연어 배치 명령 → 결정론적 위치 탐색·사전 검증·1회 재시도·명시적 강제 적용 |
 | **도우미 챗봇** | 인테리어 초보용 Q&A (현재 배치 상태 인지) |
 | **편집기** | 가구 드래그(바닥 평면 고정), 동선 경유점 편집, 팔레트 추가/삭제, 속성 편집, Undo/Redo, 저장 |
 
@@ -38,7 +38,7 @@ Human Layout → AI Critic → Human Revision
 **모든 수치와 판정은 결정론적 엔진에서, LLM은 설명만.**
 
 ```
-studio.json (배치 데이터)
+house2.json (원본 데모) / saved_layout.json (사용자 저장본)
     ↓
 Geometry + Rule Engine ── 정확한 검출 (LLM 개입 0%)
     ↓
@@ -52,12 +52,21 @@ LLM ── 검증된 사실 + 규칙/사례 KB → 자연어 설명 (수치 생�
 ## 실행
 
 ```bash
-pip install -r requirements.txt
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 python -m uvicorn backend.main:app --port 8001
 # → http://localhost:8001
 ```
 
-**⚡ AI 속도:** `.env.example`을 `.env`로 복사하고 무료 [Gemini API 키](https://aistudio.google.com/apikey)를 넣으면 AI 응답이 1~4초. 키가 없으면 Claude Code CLI로 폴백(느림), 그것도 없으면 템플릿 폴백.
+Windows PowerShell에서는 활성화 대신 `.venv\Scripts\python.exe`로 위 Python 명령을 실행해도 됩니다.
+WSL의 기존 개발 환경은 `source ~/.venvs/wanted-ai-hackathon/bin/activate`로 활성화합니다.
+개인용 실행 스크립트 없이도 위 명령으로 전체 프로그램을 실행할 수 있습니다.
+
+선택 사항: `.env.example`을 `.env`로 복사하고 Gemini/Groq/OpenAI API 키 또는 Claude CLI를 설정합니다.
+AI가 없어도 검사·해결안·자동 수정·편집은 동작하며, 설명은 엔진 사실에 기반한 템플릿을 제공합니다.
+명령·채팅은 AI 연결 실패를 명시합니다. API 키와 개인 저장본은 Git에 포함하지 않습니다.
+Three.js는 CDN에서 가져오므로 첫 화면 로드에는 인터넷 연결이 필요합니다.
 
 ## 테스트
 
@@ -89,6 +98,7 @@ WSL 공유 드라이브에서 pytest 캐시 권한 경고가 발생하면 `pytho
 
 개발 의존성은 `pytest`와 FastAPI `TestClient`에 필요한 `httpx`입니다.
 테스트는 LLM을 호출하지 않으며 API 작업 상태와 데이터 경로를 격리하여 원본 데모를 변경하지 않습니다.
+프론트엔드 JavaScript 검증에는 Node.js가 필요합니다(없으면 해당 테스트만 skip).
 
 현재 [기본 데모](backend/data/house2.json)의 기준선은 **9건 (HIGH 6건, MEDIUM 3건), 0점**입니다.
 부족량은 `max(요구 − 실측, 0)` mm이며 감점은 HIGH `10 + min(10, 부족량/50)`,
@@ -177,17 +187,51 @@ backend/
 ├── models.py        # Scene/가구/구역/동선 데이터 모델
 ├── geometry.py      # 기하 계산 (선분-박스, 박스-박스 거리)
 ├── detector.py      # Rule Engine (ZONE_INTRUSION 등 주거 특화)
+├── usage.py         # 회전·벽·건물 외곽을 고려한 접근 면 검사
+├── circulation.py   # NumPy 점유 격자 + BFS 동선/장애물 판정
 ├── resolver.py      # 해결안 생성 + 재검증 (바닥 평면 제약)
+├── placement.py     # 100mm × 4방향 결정론적 place 탐색
+├── i18n.py          # 한국어 조사·이름·방향·영문 메시지
 ├── llm.py           # LLM 프로바이더 (Gemini/Groq/OpenAI/Claude CLI)
 ├── commands.py      # 자연어 → 배치 작업(ops)
 ├── chat.py          # 배치 도우미 챗봇
 └── data/
-    ├── house.json      # 1인 주택 씬 — 거실·침실·서재, 내벽/문/창 (의도적 위반 5건)
-    ├── studio.json     # 원룸 씬 (의도적 위반 4건)
+    ├── house2.json     # 기본 데모 (의도된 기존 6건 + 동선 3건)
+    ├── house.json      # 이전 주택 씬 (읽기 호환 유지)
+    ├── studio.json     # 이전 원룸 씬 (읽기 호환 유지)
     └── knowledge.json  # 인체공학 규칙 + 배치 사례 KB
 frontend/
 └── index.html       # Three.js 뷰어 + 전체 UI
+tests/               # 기하·규칙·해결안·저장·AI 검증·실제 HTTP·JS 테스트
+requirements-dev.txt # 테스트 의존성
 ```
+
+## 호환성과 API
+
+Python 모델은 `Furniture`, `Walkway`, `Scene.furniture`, `Scene.walkways`를 사용합니다.
+이전 `Equipment`, `Pipe` 클래스와 `.equipment`, `.pipes` 접근은 호환용 별칭으로 남깁니다.
+Pydantic은 새 키와 옛 키를 모두 읽으며, 저장/API JSON은 기존 `equipment`, `pipes` 키를 유지합니다.
+위반 대상 kind는 `furniture`, `walkway`, `structure`, `room`입니다.
+면이 닿기만 하는 깊이 0의 경우 충돌로 처리하지 않습니다.
+
+| API | 용도 |
+|---|---|
+| GET/PUT `/api/scene` | 작업 씬 조회/편집 |
+| GET `/api/inspect`, `/api/resolve/{id}` | 검사 및 검증된 해결안 |
+| POST `/api/apply`, `/api/autofix` | 해결안/자동 수정 |
+| POST `/api/save`, `/api/restore`, `/api/reset` | 저장/저장본 복원/원본 데모 |
+| GET `/api/storage` | 저장본 존재 여부 |
+| POST `/api/undo`, `/api/redo` | 실행취소/재실행 |
+| POST `/api/command`, `/api/command/apply` | AI 제안 검증/거부된 동일 작업 확인 적용 |
+| GET `/api/explain/{id}`, POST `/api/chat` | AI 설명/질문 |
+| GET `/api/report` | 점수·위반·변경 이력 |
+
+### 범위와 제한
+
+- 한 프로세스의 공용 작업 씬을 사용하는 로컬 데모이며, 다중 사용자 서비스가 아닙니다.
+- 회전은 90° 단위 AABB 모델입니다. 동선은 100mm 격자 근사이며 법적 피난·건축 검토를 대신하지 않습니다.
+- 해결안·place는 제한된 후보 탐색입니다. 해결 불가능한 경우 원본을 바꾸지 않고 수동 검토/실패를 알립니다.
+- AI 네트워크 호출은 테스트에서 대체합니다. 실제 공급자 연결과 생성 문구는 환경에 따라 달라집니다.
 
 ## 계보
 

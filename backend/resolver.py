@@ -36,12 +36,12 @@ def _vkey(v: dict) -> tuple:
     return (*pair, v["code"])
 
 
-def _find_pipe(scene: Scene, pid: str):
-    return next(p for p in scene.pipes if p.id == pid)
+def _find_walkway(scene: Scene, pid: str):
+    return next(p for p in scene.walkways if p.id == pid)
 
 
 def _find_box_obj(scene: Scene, oid: str):
-    for eq in scene.equipment:
+    for eq in scene.furniture:
         if eq.id == oid:
             return eq, "move_equipment"
     for st in scene.structures:
@@ -73,7 +73,7 @@ def _apply_action(scene: Scene, action: dict) -> Scene:
     s = copy.deepcopy(scene)
     t = action["type"]
     if t == "offset_pipe_segment":
-        _find_pipe(s, action["pipe_id"]).path = action["new_path"]
+        _find_walkway(s, action["pipe_id"]).path = action["new_path"]
     elif t in ("rotate_equipment", "transform_equipment"):
         obj, _ = _find_box_obj(s, action["target_id"])
         obj.box.min = action["new_box"]["min"]
@@ -91,10 +91,10 @@ def _verify(scene: Scene, action: dict, target_key: tuple,
     """Returns (resolves_target, newly_introduced_count, total_violations_after)."""
     changed = _apply_action(scene, action)
     fast = Inspector(changed, include_paths=False)
-    fast.check_equipment_overlaps()
+    fast.check_furniture_overlaps()
     fast.check_room_containment()
     fast.check_bounds()
-    fast.check_maintenance_space()
+    fast.check_usage_space()
     fast_keys = {_vkey(v) for v in fast.violations}
     if fast_keys - old_keys or target_key in fast_keys:
         return False, len(fast_keys - old_keys), len(fast_keys)
@@ -126,7 +126,7 @@ class Resolver:
     def _counterpart_box(self, target_id: str):
         """AABB of the other subject in the violation, if it has one."""
         other = self.v["b"] if self.v["a"]["id"] == target_id else self.v["a"]
-        if other["kind"] == "pipe" or other["id"] == "room":
+        if other["kind"] == "walkway" or other["id"] == "room":
             return None
         obj, _ = _find_box_obj(self.scene, other["id"])
         return None if obj is None else (tuple(obj.box.min), tuple(obj.box.max))
@@ -142,8 +142,8 @@ class Resolver:
                 return
 
     # ---------- candidate families ----------
-    def try_pipe_offsets(self, pipe_id: str) -> None:
-        pipe = _find_pipe(self.scene, pipe_id)
+    def try_walkway_offsets(self, pipe_id: str) -> None:
+        pipe = _find_walkway(self.scene, pipe_id)
         seg = _closest_segment(pipe, tuple(self.v["location"]))
         seg_dir = g.sub(tuple(pipe.path[seg + 1]), tuple(pipe.path[seg]))
         for axis, unit in AXES.items():
@@ -296,22 +296,22 @@ class Resolver:
     # ---------- entry ----------
     def run(self) -> list[dict[str, Any]]:
         a, b = self.v["a"], self.v["b"]
-        if a["kind"] == "pipe":
-            self.try_pipe_offsets(a["id"])
-        if b["kind"] == "pipe":
-            self.try_pipe_offsets(b["id"])
-        if a["kind"] != "pipe":
+        if a["kind"] == "walkway":
+            self.try_walkway_offsets(a["id"])
+        if b["kind"] == "walkway":
+            self.try_walkway_offsets(b["id"])
+        if a["kind"] != "walkway":
             self.try_box_moves(a["id"])
-        if b["kind"] not in ("pipe", "room") and b["id"] not in ("room", a["id"]):
+        if b["kind"] not in ("walkway", "room") and b["id"] not in ("room", a["id"]):
             self.try_box_moves(b["id"])
         subjects = {subj["id"]: subj for subj in (a, b)}.values()
         for subj in subjects:
-            if subj["kind"] == "equipment":
+            if subj["kind"] == "furniture":
                 for delta in (90, 180, 270):
                     self.try_rotation(subj["id"], delta)
         if len(self.candidates) < 2:
             for subj in subjects:
-                if subj["kind"] == "equipment":
+                if subj["kind"] == "furniture":
                     self.try_combined_moves(subj["id"])
         # maintenance space: prefer moving the intruder (b), not the equipment
         # that owns the clearance requirement (a)

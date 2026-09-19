@@ -5,7 +5,7 @@ import numpy as np
 
 from backend.detector import inspect_scene
 from backend.i18n import TYPE_NAMES, display_name, tr
-from backend.models import Box, Equipment, Scene
+from backend.models import Box, Furniture, Scene
 from backend.resolver import _vkey
 from backend.usage import usage_spaces
 
@@ -19,7 +19,7 @@ def place(scene: Scene, op: dict, sizes: dict) -> str:
         raise ValueError(tr("배치할 방이 없습니다.", "Placement room not found."))
     if bool(op.get("id")) == bool(op.get("type")):
         raise ValueError("place requires exactly one of id or type")
-    existing = next((e for e in scene.equipment if e.id == op.get("id")), None)
+    existing = next((e for e in scene.furniture if e.id == op.get("id")), None)
     if op.get("id") and existing is None:
         raise ValueError(tr("배치할 가구가 없습니다.", "Furniture to place was not found."))
     if existing is None:
@@ -27,29 +27,29 @@ def place(scene: Scene, op: dict, sizes: dict) -> str:
         if kind not in sizes:
             raise ValueError(tr("지원하지 않는 가구 종류입니다.", "Unsupported furniture type."))
         number = 1
-        used = {o.id for o in scene.equipment + scene.structures + scene.pipes}
+        used = {o.id for o in scene.furniture + scene.structures + scene.walkways}
         while f"{kind}_{number}" in used:
             number += 1
         name_number = 1
-        names = {e.name for e in scene.equipment if e.type == kind}
+        names = {e.name for e in scene.furniture if e.type == kind}
         if names:
             name_number = 2
         while f"{TYPE_NAMES[kind][0]} {name_number}" in names:
             name_number += 1
-        existing = Equipment(id=f"{kind}_{number}", name=f"{TYPE_NAMES[kind][0]} {name_number}",
+        existing = Furniture(id=f"{kind}_{number}", name=f"{TYPE_NAMES[kind][0]} {name_number}",
                              type=kind, box=Box(min=[0, 0, 0], max=list(sizes[kind])))
         creating = True
     else:
         creating = False
     near = None
     if op.get("near"):
-        near = next((o for o in scene.equipment + scene.structures if o.id == op["near"]), None)
+        near = next((o for o in scene.furniture + scene.structures if o.id == op["near"]), None)
         if near is None:
             raise ValueError(tr("가까이 둘 대상이 없습니다.", "The near target was not found."))
     target = near.box if near else room.box
     center = [(target.min[i] + target.max[i]) / 2 for i in range(2)]
     old_keys = {_vkey(v) for v in inspect_scene(scene, include_paths=False)["violations"]}
-    obstacles = [e for e in scene.equipment if e.id != existing.id]
+    obstacles = [e for e in scene.furniture if e.id != existing.id]
     obstacles += [s for s in scene.structures if s.type != "deck"]
     original_size = [existing.box.max[i] - existing.box.min[i] for i in range(3)]
     candidates = []
@@ -79,7 +79,7 @@ def place(scene: Scene, op: dict, sizes: dict) -> str:
         obj = existing.model_copy(deep=True)
         obj.rotation = rotation
         obj.box = Box(min=[cx-w/2, cy-d/2, 0], max=[cx+w/2, cy+d/2, h])
-        candidate.equipment = [e for e in candidate.equipment if e.id != obj.id] + [obj]
+        candidate.furniture = [e for e in candidate.furniture if e.id != obj.id] + [obj]
         own_usage = next((s for s in usage_spaces(candidate) if s["id"] == obj.id), None)
         if own_usage is not None and not own_usage["passed"]:
             continue
@@ -87,10 +87,10 @@ def place(scene: Scene, op: dict, sizes: dict) -> str:
         keys = {_vkey(v) for v in inspect_scene(candidate, include_paths=False)["violations"]}
         if not keys - old_keys:
             if creating:
-                scene.equipment.append(obj)
+                scene.furniture.append(obj)
             else:
-                index = next(i for i, e in enumerate(scene.equipment) if e.id == obj.id)
-                scene.equipment[index] = obj
+                index = next(i for i, e in enumerate(scene.furniture) if e.id == obj.id)
+                scene.furniture[index] = obj
             return tr(f"{display_name(obj)} 배치", f"Placed {display_name(obj)}")
         if checked >= MAX_FULL_CHECKS:
             break

@@ -11,7 +11,7 @@ import json
 from typing import Any
 
 from backend.llm import _call_claude
-from backend.models import Box, Equipment, Pipe, Scene, Structure
+from backend.models import Box, Furniture, Walkway, Scene, Structure
 from backend.i18n import TYPE_NAMES, display_name, language_instruction, tr
 from backend.detector import inspect_scene
 from backend.resolver import _vkey
@@ -53,17 +53,17 @@ def _brief(scene: Scene) -> str:
         "rooms": [{"id": r.id, "name": r.name, "box": r.box.model_dump()}
                   for r in scene.rooms],
         "equipment": [{"id": e.id, "type": e.type, "box": e.box.model_dump()}
-                      for e in scene.equipment],
+                      for e in scene.furniture],
         "structures": [{"id": s.id, "type": s.type, "box": s.box.model_dump()}
                        for s in scene.structures],
         "pipes": [{"id": p.id, "diameter_mm": p.diameter_mm, "path": p.path}
-                  for p in scene.pipes],
+                  for p in scene.walkways],
     }, ensure_ascii=False)
 
 
 def _next_id(scene: Scene, prefix: str) -> str:
-    ids = {e.id for e in scene.equipment} | {s.id for s in scene.structures} | \
-          {p.id for p in scene.pipes}
+    ids = {e.id for e in scene.furniture} | {s.id for s in scene.structures} |\
+          {p.id for p in scene.walkways}
     n = 1
     while f"{prefix}_{n}" in ids:
         n += 1
@@ -71,7 +71,7 @@ def _next_id(scene: Scene, prefix: str) -> str:
 
 
 def _next_pipe_id(scene: Scene) -> str:
-    ids = {p.id for p in scene.pipes}
+    ids = {p.id for p in scene.walkways}
     n = 1
     while f"W-{n}" in ids:
         n += 1
@@ -79,9 +79,9 @@ def _next_pipe_id(scene: Scene) -> str:
 
 
 def _find(scene: Scene, oid: str):
-    for coll, kind in ((scene.equipment, "equipment"),
+    for coll, kind in ((scene.furniture, "furniture"),
                        (scene.structures, "structure"),
-                       (scene.pipes, "pipe")):
+                       (scene.walkways, "walkway")):
         for o in coll:
             if o.id == oid:
                 return o, kind, coll
@@ -97,8 +97,8 @@ def _apply_op(s: Scene, op: dict) -> str:
         size = op.get("size") or TYPE_SIZES[t]
         cx, cy = float(op["center"][0]), float(op["center"][1])
         eid = op.get("id") or _next_id(s, t)
-        number = 1 + sum(e.type == t for e in s.equipment)
-        s.equipment.append(Equipment(id=eid, name=f"{TYPE_NAMES[t][0]} {number}", type=t, box=Box(
+        number = 1 + sum(e.type == t for e in s.furniture)
+        s.furniture.append(Furniture(id=eid, name=f"{TYPE_NAMES[t][0]} {number}", type=t, box=Box(
             min=[cx - size[0] / 2, cy - size[1] / 2, 0],
             max=[cx + size[0] / 2, cy + size[1] / 2, size[2]])))
         return tr(f"{s.equipment[-1].name} 추가", f"Added {display_name(s.equipment[-1])}")
@@ -112,7 +112,7 @@ def _apply_op(s: Scene, op: dict) -> str:
     if k == "move":
         o, kind, _ = _find(s, op["id"])
         d = [float(v) for v in op["delta"]]
-        if kind == "pipe":
+        if kind == "walkway":
             o.path = [[p[i] + d[i] for i in range(3)] for p in o.path]
         else:
             o.box.min = [o.box.min[i] + d[i] for i in range(3)]
@@ -120,7 +120,7 @@ def _apply_op(s: Scene, op: dict) -> str:
         return tr(f"{display_name(o)} 이동", f"Moved {display_name(o)}")
     if k == "rotate":
         o, kind, _ = _find(s, op["id"])
-        if kind != "equipment":
+        if kind != "furniture":
             raise ValueError(tr(f"{display_name(o)}는 회전할 수 없습니다", f"Cannot rotate {display_name(o)}"))
         cx = (o.box.min[0] + o.box.max[0]) / 2
         cy = (o.box.min[1] + o.box.max[1]) / 2
@@ -139,12 +139,12 @@ def _apply_op(s: Scene, op: dict) -> str:
         path = [[float(c) for c in pt] for pt in op["path"]]
         if len(path) < 2:
             raise ValueError(tr("경유점 2개 이상 필요", "At least two waypoints are required"))
-        s.pipes.append(Pipe(id=pid, name=pid, system="walkway",
+        s.walkways.append(Walkway(id=pid, name=pid, system="walkway",
                             diameter_mm=float(op.get("diameter_mm", 80)), path=path))
         return tr(f"{pid} 추가", f"Added {pid}")
     if k == "set_diameter":
         o, kind, _ = _find(s, op["id"])
-        if kind != "pipe":
+        if kind != "walkway":
             raise ValueError(tr(f"{display_name(o)}는 동선이 아님", f"{display_name(o)} is not a walkway"))
         o.diameter_mm = float(op["diameter_mm"])
         return tr(f"{display_name(o)} 폭 변경", f"Changed width of {display_name(o)}")
@@ -170,7 +170,7 @@ def run_command(scene: Scene, text: str) -> dict[str, Any]:
                     raise ValueError("Unsupported operation")
                 if op.get("op") in {"move", "rotate", "delete"}:
                     _, kind, _ = _find(candidate, op["id"])
-                    if kind != "equipment":
+                    if kind != "furniture":
                         raise ValueError("Only furniture can be modified")
                 done.append(_apply_op(candidate, op))
             candidate = Scene.model_validate(candidate.model_dump())

@@ -12,7 +12,7 @@ EPS = 1e-9
 
 def usage_spaces(scene: Scene) -> list[dict]:
     spaces = []
-    for furniture in scene.equipment:
+    for furniture in scene.furniture:
         required = furniture.maintenance_clearance_mm
         if required is None:
             required = USAGE_RULES_MM.get(furniture.type)
@@ -32,7 +32,7 @@ def usage_spaces(scene: Scene) -> list[dict]:
             boundary = scene.meta.room.max[axis] if sign > 0 else scene.meta.room.min[axis]
             distance = max(0.0, (boundary - face) * sign)
             blocker = {"id": "room", "name": tr("건물 외곽", "Building boundary"), "kind": "structure"}
-            obstacles = [(e, "equipment") for e in scene.equipment if e.id != furniture.id]
+            obstacles = [(e, "furniture") for e in scene.furniture if e.id != furniture.id]
             obstacles += [(s, "structure") for s in scene.structures if s.type == "wall"]
             for obstacle, kind in obstacles:
                 lo, hi = obstacle.box.min, obstacle.box.max

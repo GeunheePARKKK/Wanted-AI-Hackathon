@@ -89,7 +89,7 @@ def inspect_circulation(scene: Scene, usage: list[dict], include_paths: bool = T
     for wall in scene.structures:
         if wall.type == "wall":
             static |= _mask(xx, yy, wall.box)
-    furniture_masks = [_mask(xx, yy, e.box) for e in scene.equipment]
+    furniture_masks = [_mask(xx, yy, e.box) for e in scene.furniture]
     counts = np.zeros(xx.shape, dtype=np.int32)
     for mask in furniture_masks:
         counts += mask
@@ -104,7 +104,7 @@ def inspect_circulation(scene: Scene, usage: list[dict], include_paths: bool = T
             targets.append(({"id": door.id, "name": display_name(door), "kind": "structure"},
                             _inside(xx, yy, door.box.min, door.box.max)))
     for space in usage:
-        obj = next(e for e in scene.equipment if e.id == space["id"])
+        obj = next(e for e in scene.furniture if e.id == space["id"])
         mask = np.zeros(xx.shape, dtype=bool)
         for side in space["alternatives"]:
             low, high = list(side["box"]["min"]), list(side["box"]["max"])
@@ -113,7 +113,7 @@ def inspect_circulation(scene: Scene, usage: list[dict], include_paths: bool = T
             end = face + sign * max(space["required_mm"] / 1000, 0.6)
             low[axis], high[axis] = min(face, end), max(face, end)
             mask |= _inside(xx, yy, low, high)
-        targets.append(({"id": obj.id, "name": display_name(obj), "kind": "equipment"}, mask))
+        targets.append(({"id": obj.id, "name": display_name(obj), "kind": "furniture"}, mask))
     parents = _bfs(blocked, entrance_cells, nx)
     reachable = np.array(parents).reshape(xx.shape) >= 0
     results, paths, failures = [], [], []
@@ -135,14 +135,14 @@ def inspect_circulation(scene: Scene, usage: list[dict], include_paths: bool = T
             idx = parents[idx]
         paths.append({"target_id": subject["id"], "points": path[::-1]})
     unresolved = list(failures)
-    for furniture, mask in zip(scene.equipment, furniture_masks):
+    for furniture, mask in zip(scene.furniture, furniture_masks):
         if not unresolved:
             break
         without = static | ((counts - mask) > 0)
         reachable_without = np.array(_bfs(without, entrance_cells, nx, parents)).reshape(xx.shape) >= 0
         for result, target_mask in list(unresolved):
             if np.any(target_mask & reachable_without):
-                result["blocker"] = {"id": furniture.id, "name": display_name(furniture), "kind": "equipment"}
+                result["blocker"] = {"id": furniture.id, "name": display_name(furniture), "kind": "furniture"}
                 unresolved.remove((result, target_mask))
     for result, _ in unresolved:
         result["blocker"] = {"id": "room", "name": tr("고정 구조 또는 여러 장애물", "Fixed structure or multiple obstacles"),

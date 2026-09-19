@@ -115,7 +115,7 @@ def box_box_distance(amin: Vec3, amax: Vec3, bmin: Vec3, bmax: Vec3) -> float:
 
 
 def boxes_overlap(amin: Vec3, amax: Vec3, bmin: Vec3, bmax: Vec3) -> bool:
-    return all(amin[i] <= bmax[i] and bmin[i] <= amax[i] for i in range(3))
+    return all(amin[i] < bmax[i] and bmin[i] < amax[i] for i in range(3))
 
 
 def midpoint(a: Vec3, b: Vec3) -> Vec3:

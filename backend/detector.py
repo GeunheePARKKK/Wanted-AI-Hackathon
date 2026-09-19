@@ -55,7 +55,7 @@ class Inspector:
             "detail": violation_detail(code, a, b, measured_mm, required_mm),
         })
 
-    def _pipe_vs_box(self, pipe, obj, kind: str, required_mm: float) -> None:
+    def _walkway_vs_box(self, pipe, obj, kind: str, required_mm: float) -> None:
         """Min surface distance between a pipe (capsule chain) and an AABB."""
         self.checks_run += 1
         r = pipe.diameter_mm / 2 / MM
@@ -69,42 +69,42 @@ class Inspector:
         assert best is not None
         surface_mm = (best[0] - r) * MM
         loc = g.midpoint(best[1], best[2])
-        if surface_mm <= 0:
+        if surface_mm < 0:
             self._report(
                 "HARD_CLASH", "HIGH",
-                _subject(pipe, "pipe"), _subject(obj, kind),
+                _subject(pipe, "walkway"), _subject(obj, kind),
                 surface_mm, required_mm, loc,
                 f"{pipe.id} penetrates {obj.id} (overlap {abs(surface_mm):.0f} mm)")
         elif surface_mm < required_mm:
             self._report(
                 "CLEARANCE_VIOLATION", "MEDIUM",
-                _subject(pipe, "pipe"), _subject(obj, kind),
+                _subject(pipe, "walkway"), _subject(obj, kind),
                 surface_mm, required_mm, loc,
                 f"{pipe.id} to {obj.id} clearance {surface_mm:.0f} mm < required {required_mm:.0f} mm")
 
     # ---------------- checks ----------------
-    def check_pipes_vs_structures(self) -> None:
+    def check_walkways_vs_structures(self) -> None:
         req = self.scene.rules.min_pipe_clearance_mm
-        for pipe in self.scene.pipes:
+        for pipe in self.scene.walkways:
             for st in self.scene.structures:
                 if st.type == "zone":
                     continue  # walkways may pass through door/window zones
-                self._pipe_vs_box(pipe, st, "structure", req)
+                self._walkway_vs_box(pipe, st, "structure", req)
 
-    def check_pipes_vs_equipment(self) -> None:
+    def check_walkways_vs_furniture(self) -> None:
         req = self.scene.rules.min_pipe_clearance_mm
-        for pipe in self.scene.pipes:
+        for pipe in self.scene.walkways:
             connected = {pipe.from_, pipe.to}
-            for eq in self.scene.equipment:
+            for eq in self.scene.furniture:
                 if eq.id in connected:
                     continue  # a pipe may touch the equipment it connects to
-                self._pipe_vs_box(pipe, eq, "equipment", req)
+                self._walkway_vs_box(pipe, eq, "furniture", req)
 
-    def check_pipes_vs_pipes(self) -> None:
+    def check_walkways_vs_walkways(self) -> None:
         req = self.scene.rules.min_pipe_to_pipe_clearance_mm
         if req <= 0:
             return  # walkways are allowed to cross each other
-        pipes = self.scene.pipes
+        pipes = self.scene.walkways
         for i in range(len(pipes)):
             for j in range(i + 1, len(pipes)):
                 p1, p2 = pipes[i], pipes[j]
@@ -121,21 +121,21 @@ class Inspector:
                 assert best is not None
                 surface_mm = (best[0] - r_sum) * MM
                 loc = g.midpoint(best[1], best[2])
-                if surface_mm <= 0:
+                if surface_mm < 0:
                     self._report(
                         "HARD_CLASH", "HIGH",
-                        _subject(p1, "pipe"), _subject(p2, "pipe"),
+                        _subject(p1, "walkway"), _subject(p2, "walkway"),
                         surface_mm, req, loc,
                         f"{p1.id} and {p2.id} intersect (overlap {abs(surface_mm):.0f} mm)")
                 elif surface_mm < req:
                     self._report(
                         "CLEARANCE_VIOLATION", "MEDIUM",
-                        _subject(p1, "pipe"), _subject(p2, "pipe"),
+                        _subject(p1, "walkway"), _subject(p2, "walkway"),
                         surface_mm, req, loc,
                         f"{p1.id} to {p2.id} clearance {surface_mm:.0f} mm < required {req:.0f} mm")
 
-    def check_equipment_overlaps(self) -> None:
-        objs = [(eq, "equipment") for eq in self.scene.equipment] + \
+    def check_furniture_overlaps(self) -> None:
+        objs = [(eq, "furniture") for eq in self.scene.furniture] +\
                [(st, "structure") for st in self.scene.structures if st.type != "deck"]
         for i in range(len(objs)):
             for j in range(i + 1, len(objs)):
@@ -165,22 +165,22 @@ class Inspector:
                             -depth * MM, 0.0, ca,
                             f"{a.id} overlaps {b.id} (penetration {depth * MM:.0f} mm)")
 
-    def check_maintenance_space(self) -> None:
+    def check_usage_space(self) -> None:
         for space in self.usage:
             self.checks_run += 1
             if space["passed"]:
                 continue
-            eq = next(e for e in self.scene.equipment if e.id == space["id"])
+            eq = next(e for e in self.scene.furniture if e.id == space["id"])
             best = max(space["alternatives"], key=lambda s: s["measured_mm"])
             box = best["box"]
-            self._report("USAGE_SPACE", "MEDIUM", _subject(eq, "equipment"),
+            self._report("USAGE_SPACE", "MEDIUM", _subject(eq, "furniture"),
                          best["blocker"], best["measured_mm"], space["required_mm"],
                          g.midpoint(tuple(box["min"]), tuple(box["max"])), "")
 
     def check_bounds(self) -> None:
-        """Objects must stay inside the room (rejects fixes that push things through the hull)."""
+        """Objects must stay inside the building boundary."""
         rmin, rmax = _box(self.scene.meta.room)
-        for pipe in self.scene.pipes:
+        for pipe in self.scene.walkways:
             self.checks_run += 1
             r = pipe.diameter_mm / 2 / MM
             worst = None
@@ -192,11 +192,11 @@ class Inspector:
             if worst:
                 self._report(
                     "OUT_OF_BOUNDS", "HIGH",
-                    _subject(pipe, "pipe"),
+                    _subject(pipe, "walkway"),
                     {"id": "room", "name": tr("건물 외곽", "Building boundary"), "kind": "structure"},
                     -worst[0] * MM, 0.0, worst[1],
                     f"{pipe.id} exits the room boundary by {worst[0] * MM:.0f} mm")
-        for eq in self.scene.equipment + self.scene.structures:
+        for eq in self.scene.furniture + self.scene.structures:
             if getattr(eq, "type", "") == "deck":
                 continue
             self.checks_run += 1
@@ -205,7 +205,7 @@ class Inspector:
             if over > 0:
                 self._report(
                     "OUT_OF_BOUNDS", "HIGH",
-                    _subject(eq, "equipment"),
+                    _subject(eq, "furniture"),
                     {"id": "room", "name": tr("건물 외곽", "Building boundary"), "kind": "structure"},
                     -over * MM, 0.0, g.midpoint(emin, emax),
                     f"{eq.id} exits the room boundary by {over * MM:.0f} mm")
@@ -215,7 +215,7 @@ class Inspector:
         rooms = self.scene.rooms
         if not rooms:
             return
-        for eq in self.scene.equipment:
+        for eq in self.scene.furniture:
             self.checks_run += 1
             emin, emax = _box(eq.box)
             best = None  # (overhang_m, room) for the best-fitting room
@@ -229,18 +229,18 @@ class Inspector:
             if over > 1e-9:
                 self._report(
                     "OUT_OF_ROOM", "HIGH",
-                    _subject(eq, "equipment"),
+                    _subject(eq, "furniture"),
                     {"id": room.id, "name": display_name(room), "kind": "room"},
                     -over * MM, 0.0, g.midpoint(emin, emax),
                     f"{eq.id}이(가) {room.name} 영역을 {over * MM:.0f} mm 벗어남")
 
     # ---------------- entry ----------------
     def run(self) -> dict[str, Any]:
-        self.check_pipes_vs_structures()
-        self.check_pipes_vs_equipment()
-        self.check_pipes_vs_pipes()
-        self.check_equipment_overlaps()
-        self.check_maintenance_space()
+        self.check_walkways_vs_structures()
+        self.check_walkways_vs_furniture()
+        self.check_walkways_vs_walkways()
+        self.check_furniture_overlaps()
+        self.check_usage_space()
         self.check_room_containment()
         self.check_bounds()
         circulation = inspect_circulation(self.scene, self.usage, self.include_paths)
@@ -248,7 +248,7 @@ class Inspector:
             self.checks_run += 1
             if not result["reachable"]:
                 target = result["target"]
-                obj = next(o for o in self.scene.equipment + self.scene.structures if o.id == target["id"])
+                obj = next(o for o in self.scene.furniture + self.scene.structures if o.id == target["id"])
                 self._report("CIRCULATION", "HIGH", target, result["blocker"], 0, 600,
                              g.midpoint(tuple(obj.box.min), tuple(obj.box.max)), "")
         by_sev = {"HIGH": 0, "MEDIUM": 0}
