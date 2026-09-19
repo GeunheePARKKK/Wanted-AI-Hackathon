@@ -87,7 +87,7 @@ def _apply_action(scene: Scene, action: dict) -> Scene:
 def _verify(scene: Scene, action: dict, target_key: tuple,
             old_keys: set) -> tuple[bool, int, int]:
     """Returns (resolves_target, newly_introduced_count, total_violations_after)."""
-    result = inspect_scene(_apply_action(scene, action))
+    result = inspect_scene(_apply_action(scene, action), include_paths=False)
     new_keys = {_vkey(v) for v in result["violations"]}
     resolves = target_key not in new_keys
     introduced = len(new_keys - old_keys)

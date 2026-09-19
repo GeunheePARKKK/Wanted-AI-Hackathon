@@ -13,6 +13,9 @@ EXPECTED_VIOLATIONS = {
     ("ZONE_INTRUSION", "wardrobe", "bedroom_door_swing"): ("MEDIUM", -300.0, 0.0),
     ("USAGE_SPACE", "desk", "bookshelf"): ("MEDIUM", 400.0, 750.0),
     ("OUT_OF_ROOM", "tv_stand", "living"): ("HIGH", -300.0, 0.0),
+    ("CIRCULATION", "bedroom_door_swing", "wardrobe"): ("HIGH", 0.0, 600.0),
+    ("CIRCULATION", "bed", "wardrobe"): ("HIGH", 0.0, 600.0),
+    ("CIRCULATION", "wardrobe", "wardrobe"): ("HIGH", 0.0, 600.0),
 }
 
 
@@ -22,14 +25,14 @@ def violation_key(violation):
 
 def assert_demo_baseline(inspection):
     violations = inspection["violations"]
-    assert len(violations) == 6
+    assert len(violations) == 9
     assert {
         violation_key(v): (v["severity"], v["measured_mm"], v["required_mm"])
         for v in violations
     } == EXPECTED_VIOLATIONS
-    assert inspection["summary"]["violations"] == 6
-    assert inspection["summary"]["by_severity"] == {"HIGH": 3, "MEDIUM": 3}
-    assert inspection["summary"]["score"] == 26
+    assert inspection["summary"]["violations"] == 9
+    assert inspection["summary"]["by_severity"] == {"HIGH": 6, "MEDIUM": 3}
+    assert inspection["summary"]["score"] == 0
 
 
 def assert_clean(inspection):

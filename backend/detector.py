@@ -11,6 +11,7 @@ from backend import geometry as g
 from backend.models import Scene
 from backend.i18n import display_name, tr, violation_detail
 from backend.usage import usage_spaces
+from backend.circulation import inspect_circulation
 
 MM = 1000.0  # meters -> millimeters
 
@@ -29,11 +30,12 @@ def _subject(obj, kind: str) -> dict[str, Any]:
 
 
 class Inspector:
-    def __init__(self, scene: Scene):
+    def __init__(self, scene: Scene, include_paths: bool = True):
         self.scene = scene
         self.violations: list[dict[str, Any]] = []
         self.checks_run = 0
         self.usage = usage_spaces(scene)
+        self.include_paths = include_paths
 
     # ---------------- helpers ----------------
     def _report(self, code: str, severity: str, a, b, measured_mm: float,
@@ -241,6 +243,14 @@ class Inspector:
         self.check_maintenance_space()
         self.check_room_containment()
         self.check_bounds()
+        circulation = inspect_circulation(self.scene, self.usage, self.include_paths)
+        for result in circulation["targets"]:
+            self.checks_run += 1
+            if not result["reachable"]:
+                target = result["target"]
+                obj = next(o for o in self.scene.equipment + self.scene.structures if o.id == target["id"])
+                self._report("CIRCULATION", "HIGH", target, result["blocker"], 0, 600,
+                             g.midpoint(tuple(obj.box.min), tuple(obj.box.max)), "")
         by_sev = {"HIGH": 0, "MEDIUM": 0}
         for v in self.violations:
             by_sev[v["severity"]] += 1
@@ -255,8 +265,9 @@ class Inspector:
             },
             "violations": self.violations,
             "usage_spaces": self.usage,
+            "circulation": circulation,
         }
 
 
-def inspect_scene(scene: Scene) -> dict[str, Any]:
-    return Inspector(scene).run()
+def inspect_scene(scene: Scene, include_paths: bool = True) -> dict[str, Any]:
+    return Inspector(scene, include_paths).run()

@@ -383,6 +383,7 @@ const codeName = code => ({
   HARD_CLASH: t('가구 충돌', 'Collision'), ZONE_INTRUSION: t('금지 구역 침범', 'Zone intrusion'),
   MAINTENANCE_SPACE: t('사용 공간 부족', 'Insufficient usage space'),
   USAGE_SPACE: t('사용 공간 부족', 'Insufficient usage space'),
+  CIRCULATION: t('동선 차단', 'Blocked circulation'),
   OUT_OF_ROOM: t('방 경계 이탈', 'Outside room'), OUT_OF_BOUNDS: t('건물 경계 이탈', 'Outside building'),
   CLEARANCE_VIOLATION: t('이격 거리 부족', 'Insufficient clearance'),
 }[code] || t('배치 위반', 'Layout violation'));
@@ -1052,6 +1053,7 @@ async function runInspection() {
   if (revision !== languageRevision) return;
   const { summary, violations } = res;
   drawUsageSpaces(res.usage_spaces || []);
+  drawCirculation(res.circulation?.paths || []);
 
   const sc = summary.score;
   const scColor = sc >= 100 ? '#3fb950' : sc >= 70 ? '#d29922' : '#f85149';
@@ -1104,6 +1106,19 @@ async function runInspection() {
 document.getElementById('inspect-btn').onclick = runInspection;
 
 const usageOverlays = [];
+const routeOverlays = [];
+function drawCirculation(paths) {
+  for (const line of routeOverlays) {
+    root.remove(line); line.geometry.dispose(); line.material.dispose();
+  }
+  routeOverlays.length = 0;
+  for (const path of paths) {
+    const geometry = new THREE.BufferGeometry().setFromPoints(path.points.map(p => new THREE.Vector3(...p)));
+    const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({color: 0x3366ff,
+      transparent: true, opacity: 0.65}));
+    root.add(line); routeOverlays.push(line);
+  }
+}
 function drawUsageSpaces(spaces) {
   for (const mesh of usageOverlays) {
     root.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose();

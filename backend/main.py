@@ -186,7 +186,7 @@ def autofix() -> dict:
         return (*sorted([v["a"]["id"], v["b"]["id"]]), v["code"])
 
     for _ in range(20):
-        pending = [v for v in inspect_scene(scene)["violations"] if key(v) not in skipped]
+        pending = [v for v in inspect_scene(scene, include_paths=False)["violations"] if key(v) not in skipped]
         if not pending:
             break
         pending.sort(key=lambda v: 0 if v["severity"] == "HIGH" else 1)
@@ -200,7 +200,7 @@ def autofix() -> dict:
             continue
         cands = resolve_violation(scene, v["id"]).get("candidates") or []
         clean = [c for c in cands if c["verified"]]
-        pick = (clean or cands)[0] if cands else None
+        pick = min(clean, key=lambda c: (c["violations_after"], c["score"])) if clean else None
         if pick is None:
             skipped.add(k)
             steps.append({"violation": f"{v['a']['name']} ↔ {v['b']['name']} ({v['code']})",

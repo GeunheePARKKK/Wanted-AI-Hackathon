@@ -32,6 +32,7 @@ class Structure(BaseModel):
     name: str
     type: str  # deck | frame | bulkhead ...
     box: Box
+    role: str | None = None
 
 
 class Room(BaseModel):

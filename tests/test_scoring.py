@@ -17,4 +17,4 @@ def test_demo_penalties_match_geometry(demo_scene):
     for v in result["violations"]:
         assert v["shortfall_mm"] == max(v["required_mm"] - v["measured_mm"], 0)
         assert v["penalty"] == violation_penalty(v["severity"], v["shortfall_mm"])
-    assert result["summary"]["score"] == 100 - sum(v["penalty"] for v in result["violations"])
+    assert result["summary"]["score"] == max(0, 100 - sum(v["penalty"] for v in result["violations"]))

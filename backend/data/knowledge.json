@@ -2,7 +2,7 @@
   "rules": [
     {
       "id": "R-WALK-600",
-      "tags": ["HARD_CLASH", "CLEARANCE_VIOLATION", "pipe"],
+      "tags": ["CIRCULATION", "pipe"],
       "title": "주 통행 동선 폭 확보 (최소 600mm, 권장 900mm)",
       "content": "현관에서 침대·책상 등 주요 지점까지의 동선은 1인 기준 최소 600mm, 권장 900mm 폭을 확보해야 한다. 동선이 가구에 막히면 일상 이동이 불편할 뿐 아니라 야간·비상시 사고 위험이 커진다. 물건을 들고 이동하는 경우를 고려하면 900mm 이상이 바람직하다."
     },

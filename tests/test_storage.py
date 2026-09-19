@@ -16,13 +16,13 @@ def test_save_restore_and_reset_are_undoable(client):
     assert main.load_scene().model_dump(by_alias=True) == fixed
     assert client.get("/api/storage").json() == {"saved_exists": True}
 
-    assert client.post("/api/reset").json()["summary"]["violations"] == 6
+    assert client.post("/api/reset").json()["summary"]["violations"] == 9
     assert main.SAVED_FILE.read_bytes() == saved
     assert client.post("/api/undo").json()["summary"]["score"] == 100
-    assert client.post("/api/redo").json()["summary"]["violations"] == 6
+    assert client.post("/api/redo").json()["summary"]["violations"] == 9
 
     assert client.post("/api/restore").json()["summary"]["score"] == 100
-    assert client.post("/api/undo").json()["summary"]["violations"] == 6
+    assert client.post("/api/undo").json()["summary"]["violations"] == 9
     assert client.post("/api/redo").json()["summary"]["score"] == 100
     assert main.DATA_FILE.read_bytes() == original
     assert main.SAVED_FILE.read_bytes() == saved
