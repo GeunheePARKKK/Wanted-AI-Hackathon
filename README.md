@@ -18,6 +18,24 @@ Wanted Design System 참고 자료의 밝은 표면·선명한 파란색·둥근
 
 단계별 변경·설계 이유·측정·커밋·확인 체크리스트는 [IMPROVEMENTS.md](IMPROVEMENTS.md)에 정리했습니다.
 
+아래는 실제 실행한 프로그램의 화면입니다. 목업이나 AI 생성 이미지가 아닙니다.
+
+### 한국어 검사 화면 — 기본 데모 9건·0점
+
+![한국어 기본 씬 검사 화면](docs/screenshots/01-korean-inspection.png)
+
+### 전체 자동 수정 — 5회 수정 후 0건·100점
+
+![자동 수정 완료와 검증 결과](docs/screenshots/02-autofix-success.png)
+
+### English 작업 화면
+
+![English workspace with verified layout](docs/screenshots/03-english-workspace.png)
+
+### 검토 리포트 — 점수·수정 이력·감점 공식
+
+![실제 검토 리포트 화면](docs/screenshots/04-review-report.png)
+
 ## 왜 이게 없는가 (시장 조사)
 
 오늘의집 3D, 아키스케치, Planner 5D, Coohom 등 기존 도구는 전부 **생성(Generation) 패러다임** — "AI가 예쁜 배치를 만들어줄게"입니다. 반면:
