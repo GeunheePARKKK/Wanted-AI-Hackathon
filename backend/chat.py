@@ -8,9 +8,10 @@ from backend.commands import _brief
 from backend.detector import inspect_scene
 from backend.llm import _load_knowledge, llm_text
 from backend.models import Scene
+from backend.i18n import language_instruction, tr
 
 PROMPT = """당신은 'AI Home Layout Debugger'에 내장된 1인 주택 인테리어 도우미 챗봇입니다.
-인테리어가 처음인 사람도 이해할 수 있게 쉬운 말로, 간결하게(2~5문장, 필요하면 짧은 목록) 한국어로 답하세요.
+인테리어가 처음인 사람도 이해할 수 있게 쉬운 말로, 간결하게(2~5문장, 필요하면 짧은 목록) 선택된 언어로 답하세요.
 배치를 직접 수정할 수는 없습니다. 수정 요청을 받으면 상단 'AI Copilot' 입력창이나 편집 도구 사용법을 안내하세요.
 
 [이 도구 사용법]
@@ -66,5 +67,6 @@ def answer(scene: Scene, text: str, history: list[dict]) -> str:
         history=hist,
         text=text[:500],
     )
-    reply = llm_text(prompt)
-    return reply or "죄송합니다, 지금은 답변 생성에 실패했습니다. Claude CLI 상태를 확인해주세요."
+    reply = llm_text(prompt + language_instruction())
+    return reply or tr("지금은 답변 생성에 실패했습니다. AI 제공자 설정을 확인해주세요.",
+                       "Unable to generate a reply. Check your AI provider configuration.")

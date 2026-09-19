@@ -14,6 +14,7 @@ from typing import Any
 from backend import geometry as g
 from backend.detector import inspect_scene
 from backend.models import Scene
+from backend.i18n import direction, display_name, tr, with_particle
 
 MM = 1000.0
 MARGIN_M = 0.05  # extra safety margin on top of the required clearance
@@ -94,7 +95,7 @@ def _verify(scene: Scene, action: dict, target_key: tuple,
 
 
 def _axis_name(axis: str, sign: float) -> str:
-    return f"{'+' if sign > 0 else '-'}{axis.upper()}"
+    return direction(axis, sign)
 
 
 class Resolver:
@@ -159,7 +160,9 @@ class Resolver:
                 name = _axis_name(axis, sign)
                 self._try_direction(
                     make, self.magnitudes,
-                    lambda mag, _n=name: f"{pipe_id} 동선을 {_n} 방향으로 {mag * MM:.0f} mm 조정")
+                    lambda mag, _n=name: tr(
+                        f"{display_name(pipe)} 동선을 {_n}으로 {mag * MM:.0f} mm 조정",
+                        f"Offset {display_name(pipe)} {mag * MM:.0f} mm {_n}"))
 
     def try_box_moves(self, target_id: str) -> None:
         obj, action_type = _find_box_obj(self.scene, target_id)
@@ -194,16 +197,22 @@ class Resolver:
                             "max": [obj.box.max[k] + delta[k] for k in range(3)],
                         },
                     }
-                label = "가구" if action_type == "move_equipment" else "구조 요소"
                 name = _axis_name(axis, sign)
                 self._try_direction(
                     make, mags,
-                    lambda mag, _n=name, _l=label:
-                        f"{_l} {target_id}를 {_n} 방향으로 {mag * MM:.0f} mm 이동")
+                    lambda mag, _n=name: tr(
+                        f"{with_particle(display_name(obj), '을/를')} {_n}으로 {mag * MM:.0f} mm 이동",
+                        f"Move {display_name(obj)} {mag * MM:.0f} mm {_n}"))
 
     def _add(self, action: dict, mag_m: float, description: str, n_after: int,
              introduced: int) -> None:
         impact_text, penalty = IMPACT[action["type"]]
+        impact_text = tr(impact_text, {
+            "offset_pipe_segment": "Adjust walkway route",
+            "move_equipment": "Reposition furniture",
+            "rotate_equipment": "Rotate furniture in place",
+            "move_structure": "Move structure - construction review required",
+        }[action["type"]])
         # vertical relocation of equipment/structures is a last resort
         if action["type"] != "offset_pipe_segment" and action.get("axis") == "z":
             penalty += 500
@@ -240,11 +249,13 @@ class Resolver:
         }
         resolves, introduced, n_after = _verify(
             self.scene, action, self.target_key, self.old_keys)
+        description = tr(f"{with_particle(display_name(obj), '을/를')} 제자리에서 90° 회전",
+                         f"Rotate {display_name(obj)} 90 degrees in place")
         if resolves and introduced == 0:
-            self._add(action, 0.2, f"가구 {target_id}를 제자리에서 90° 회전", n_after, introduced=0)
+            self._add(action, 0.2, description, n_after, introduced=0)
         elif resolves:
             self.relaxed.append((introduced, action, 0.2,
-                                 f"가구 {target_id}를 제자리에서 90° 회전", n_after))
+                                 description, n_after))
 
     # ---------- entry ----------
     def run(self) -> list[dict[str, Any]]:
@@ -282,7 +293,7 @@ def resolve_violation(scene: Scene, violation_id: str) -> dict[str, Any]:
     result = inspect_scene(scene)
     violation = next((v for v in result["violations"] if v["id"] == violation_id), None)
     if violation is None:
-        return {"error": f"violation {violation_id} not found"}
+        return {"error": tr(f"위반 {violation_id}을 찾을 수 없습니다", f"Violation {violation_id} not found")}
     old_keys = {_vkey(v) for v in result["violations"]}
     candidates = Resolver(scene, violation, old_keys).run()
     return {"violation": violation, "candidates": candidates}

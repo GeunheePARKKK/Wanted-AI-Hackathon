@@ -10,6 +10,7 @@ from pathlib import Path
 
 from fastapi import Body, FastAPI
 from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.chat import answer as chat_answer
@@ -18,12 +19,25 @@ from backend.detector import inspect_scene
 from backend.llm import explain_violation
 from backend.models import Scene
 from backend.resolver import apply_action, resolve_violation
+from backend.i18n import LANGUAGE, display_name, tr
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
 DATA_FILE = BASE_DIR / "data" / "house2.json"
 
 app = FastAPI(title="AI Home Layout Debugger")
+
+
+@app.middleware("http")
+async def select_language(request, call_next):
+    lang = request.query_params.get("lang", "ko")
+    if lang not in ("ko", "en"):
+        return JSONResponse(status_code=422, content={"detail": "lang must be ko or en"})
+    token = LANGUAGE.set(lang)
+    try:
+        return await call_next(request)
+    finally:
+        LANGUAGE.reset(token)
 
 
 def load_scene() -> Scene:
@@ -62,7 +76,7 @@ def get_scene() -> Scene:
 def update_scene(scene: Scene) -> dict:
     """Replace the working scene (interactive editing) and re-inspect."""
     _mutate(scene)
-    _log("edit", "수동 편집 (가구 이동/회전/추가/삭제/속성 변경)")
+    _log("edit", tr("수동 편집 (가구 이동/회전/추가/삭제/속성 변경)", "Manual layout edit"))
     return inspect_scene(scene)
 
 
@@ -103,7 +117,7 @@ def apply_fix(body: dict = Body(...)) -> dict:
     """Apply a fix candidate to the working scene and re-inspect."""
     action = body.get("action", body)  # accept {action, description} or a bare action
     _mutate(apply_action(WORK["scene"], action))
-    _log("fix", body.get("description") or "해결안 적용")
+    _log("fix", body.get("description") or tr("해결안 적용", "Applied fix"))
     return inspect_scene(WORK["scene"])
 
 
@@ -144,7 +158,7 @@ def autofix() -> dict:
         if k in fixed_once:
             # a fix for this pair got undone by a later fix -> oscillation; stop retrying
             skipped.add(k)
-            steps.append({"violation": f"{v['a']['id']} ↔ {v['b']['id']} ({v['code']})",
+            steps.append({"violation": f"{v['a']['name']} ↔ {v['b']['name']} ({v['code']})",
                           "action": None, "verified": False})
             continue
         cands = resolve_violation(scene, v["id"]).get("candidates") or []
@@ -152,18 +166,18 @@ def autofix() -> dict:
         pick = (clean or cands)[0] if cands else None
         if pick is None:
             skipped.add(k)
-            steps.append({"violation": f"{v['a']['id']} ↔ {v['b']['id']} ({v['code']})",
+            steps.append({"violation": f"{v['a']['name']} ↔ {v['b']['name']} ({v['code']})",
                           "action": None, "verified": False})
             continue
         scene = apply_action(scene, pick["action"])
         fixed_once.add(k)
-        steps.append({"violation": f"{v['a']['id']} ↔ {v['b']['id']} ({v['code']})",
+        steps.append({"violation": f"{v['a']['name']} ↔ {v['b']['name']} ({v['code']})",
                       "action": pick["description"], "verified": pick["verified"]})
 
     if any(s["action"] for s in steps):
         _mutate(scene)
         fixed = [s for s in steps if s["action"]]
-        _log("agent", f"전체 자동 수정: {len(fixed)}건 해결 — " +
+        _log("agent", tr(f"전체 자동 수정: {len(fixed)}건 해결 — ", f"Autofix: {len(fixed)} fixes — ") +
              " / ".join(s["action"] for s in fixed))
     return {"steps": steps, "inspection": inspect_scene(WORK["scene"])}
 
@@ -174,7 +188,7 @@ def command(body: dict = Body(...)) -> dict:
     result = run_command(WORK["scene"], str(body.get("text", ""))[:500])
     if result.get("scene") is not None:
         _mutate(result.pop("scene"))
-        _log("copilot", result.get("reply") or "AI 명령 수행")
+        _log("copilot", result.get("reply") or tr("AI 명령 수행", "Applied AI command"))
     else:
         result.pop("scene", None)
     result["inspection"] = inspect_scene(WORK["scene"])
@@ -186,7 +200,7 @@ def report() -> dict:
     """Data for the layout review report (score, violations, session history)."""
     ins = inspect_scene(WORK["scene"])
     return {
-        "scene_name": WORK["scene"].meta.name,
+        "scene_name": display_name(WORK["scene"].meta),
         "generated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "summary": ins["summary"],
         "violations": ins["violations"],

@@ -16,6 +16,7 @@ import subprocess
 import urllib.request
 from pathlib import Path
 from typing import Any
+from backend.i18n import LANGUAGE, language_instruction
 
 KNOWLEDGE_FILE = Path(__file__).resolve().parent / "data" / "knowledge.json"
 CLAUDE_TIMEOUT_S = 90
@@ -80,7 +81,7 @@ def _build_prompt(violation: dict, candidates: list[dict], knowledge: dict) -> s
  "past_case": "가장 유사한 과거 배치 사례 요약과 당시 해결 방법 1-2문장"
 }}
 
-규칙: 제공된 수치를 절대 바꾸거나 새로 만들지 마세요. 제공된 데이터에 없는 사실을 지어내지 마세요."""
+규칙: 제공된 수치를 절대 바꾸거나 새로 만들지 마세요. 제공된 데이터에 없는 사실을 지어내지 마세요.""" + language_instruction()
 
 
 def _claude_text(prompt: str) -> str | None:
@@ -189,6 +190,17 @@ def _fallback(violation: dict, candidates: list[dict], knowledge: dict) -> dict:
     rule = knowledge["rules"][0] if knowledge["rules"] else None
     case = knowledge["cases"][0] if knowledge["cases"] else None
     rec = next((c for c in candidates if c.get("recommended")), None)
+    if LANGUAGE.get() == "en":
+        return {
+            "why": violation["detail"],
+            "impact": ["Access may be obstructed", "Furniture may be difficult to use"],
+            "recommendation": (
+                f"Option {rec['option']}: {rec['description']}. Impact: {rec['impact']}."
+                if rec else "No automatic fix is available; manual review is needed."),
+            "past_case": (f"Related knowledge-base case: {case['id']}."
+                          if case else "No related case is registered."),
+            "llm": False,
+        }
     return {
         "why": (f"{violation['detail']} — " + (rule["content"] if rule else "배치 기준 위반입니다.")),
         "impact": ["일상 생활 동선 불편", "야간·비상시 안전사고 위험", "가구 사용성 저하 (개폐/접근 불편)"],
@@ -201,7 +213,7 @@ def _fallback(violation: dict, candidates: list[dict], knowledge: dict) -> dict:
 
 
 def explain_violation(violation: dict, candidates: list[dict]) -> dict[str, Any]:
-    key = json.dumps([violation, candidates], sort_keys=True, ensure_ascii=False)
+    key = json.dumps([LANGUAGE.get(), violation, candidates], sort_keys=True, ensure_ascii=False)
     if key in _CACHE:
         return _CACHE[key]
     knowledge = retrieve_knowledge(violation)

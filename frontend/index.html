@@ -150,7 +150,7 @@
   #chat-close { margin-left: auto; cursor: pointer; color: #8b949e; }
   #chat-close:hover { color: #e6edf3; }
   #chat-msgs { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-  .chat-msg { max-width: 85%; padding: 8px 11px; border-radius: 10px; font-size: 12px; line-height: 1.55; }
+  .chat-msg { max-width: 85%; padding: 8px 11px; border-radius: 10px; font-size: 12px; line-height: 1.55; white-space: pre-wrap; }
   .chat-msg.bot { background: #21262d; align-self: flex-start; border-bottom-left-radius: 3px; }
   .chat-msg.user { background: #1f6feb; color: #fff; align-self: flex-end; border-bottom-right-radius: 3px; }
   .chat-msg.thinking { color: #bc8cff; background: #6e40c922; }
@@ -244,16 +244,19 @@
 <body>
 <div id="app">
   <header>
-    <h1>🏠 AI Home Layout Debugger</h1>
+    <h1 data-en="🏠 AI Home Layout Debugger">🏠 AI 가구 배치 검토 도우미</h1>
     <span class="badge" id="scene-name">loading…</span>
-    <span class="badge" style="background:#23863633;color:#3fb950;border-color:#23863666">Studio · AI Copilot</span>
+    <span class="badge" data-en="Home · AI Copilot" style="background:#23863633;color:#3fb950;border-color:#23863666">주거 공간 · AI 코파일럿</span>
+    <select id="language" aria-label="언어 / Language" style="background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:6px;padding:4px">
+      <option value="ko">한국어</option><option value="en">English</option>
+    </select>
     <button id="undo-btn" title="실행취소 (Ctrl+Z)">↶</button>
     <button id="redo-btn" title="다시실행 (Ctrl+Y)">↷</button>
-    <button id="save-btn">💾 저장</button>
-    <button id="reset-btn">↩ 저장본 복원</button>
+    <button id="save-btn" data-en="💾 Save">💾 저장</button>
+    <button id="reset-btn" data-en="↩ Restore saved">↩ 저장본 복원</button>
   </header>
   <div id="sidebar">
-    <h2>Design Tools</h2>
+    <h2 data-en="Design tools">설계 도구</h2>
     <div id="toolbar">
       <select id="add-type">
         <option value="bed">침대</option>
@@ -266,34 +269,34 @@
         <option value="washing_machine">세탁기</option>
         <option value="table">테이블</option>
       </select>
-      <button id="add-obj">+ 가구 추가</button>
-      <button id="del-obj">🗑 선택 항목 삭제</button>
+      <button id="add-obj" data-en="+ Add furniture">+ 가구 추가</button>
+      <button id="del-obj" data-en="🗑 Delete selected">🗑 선택 항목 삭제</button>
     </div>
-    <h2>Properties</h2>
-    <div id="props-empty" style="font-size:11px;color:#8b949e;padding:2px 0 6px">객체를 선택하면 속성을 편집할 수 있습니다</div>
+    <h2 data-en="Properties">속성</h2>
+    <div id="props-empty" data-en="Select an object to edit its properties" style="font-size:11px;color:#8b949e;padding:2px 0 6px">객체를 선택하면 속성을 편집할 수 있습니다</div>
     <div id="props" style="display:none">
       <label class="prop-row">ID <input id="prop-id" /></label>
-      <label class="prop-row">이름 <input id="prop-name" /></label>
-      <label class="prop-row" id="prop-dia-row" style="display:none">폭(mm) <input id="prop-dia" type="number" min="15" max="600" /></label>
+      <label class="prop-row"><span data-en="Name">이름</span> <input id="prop-name" /></label>
+      <label class="prop-row" id="prop-dia-row" style="display:none"><span data-en="Width (mm)">폭(mm)</span> <input id="prop-dia" type="number" min="15" max="600" /></label>
       <div id="prop-size-rows" style="display:none">
-        <label class="prop-row">가로 W(m) <input id="prop-sx" type="number" step="0.1" min="0.1" /></label>
-        <label class="prop-row">세로 D(m) <input id="prop-sy" type="number" step="0.1" min="0.1" /></label>
-        <label class="prop-row">높이 H(m) <input id="prop-sz" type="number" step="0.1" min="0.1" /></label>
+        <label class="prop-row"><span data-en="Width W(m)">가로 W(m)</span> <input id="prop-sx" type="number" step="0.1" min="0.1" /></label>
+        <label class="prop-row"><span data-en="Depth D(m)">세로 D(m)</span> <input id="prop-sy" type="number" step="0.1" min="0.1" /></label>
+        <label class="prop-row"><span data-en="Height H(m)">높이 H(m)</span> <input id="prop-sz" type="number" step="0.1" min="0.1" /></label>
       </div>
-      <button id="prop-rotate" style="display:none">↻ 90° 회전 (R)</button>
-      <button id="prop-apply">✓ 적용</button>
+      <button id="prop-rotate" data-en="↻ Rotate 90° (R)" style="display:none">↻ 90° 회전 (R)</button>
+      <button id="prop-apply" data-en="✓ Apply">✓ 적용</button>
     </div>
-    <h2>가구 (Furniture)</h2><div id="list-equipment"></div>
-    <h2 id="pipes-header" style="display:none">동선</h2><div id="list-pipes"></div>
-    <h2>구조/구역</h2><div id="list-structures"></div>
+    <h2 data-en="Furniture">가구</h2><div id="list-equipment"></div>
+    <h2 id="pipes-header" data-en="Walkways" style="display:none">동선</h2><div id="list-pipes"></div>
+    <h2 data-en="Structures / zones">구조/구역</h2><div id="list-structures"></div>
   </div>
   <div id="viewport">
     <canvas id="canvas3d"></canvas>
     <div id="tooltip"></div>
-    <div id="hint">드래그: 회전 · 휠: 줌 · 클릭: 선택 후 화살표 드래그로 이동 (Ctrl+Z 실행취소)</div>
+    <div id="hint" data-en="Drag: orbit · Wheel: zoom · Click to select, drag arrows to move (Ctrl+Z: undo)">드래그: 회전 · 휠: 줌 · 클릭: 선택 후 화살표 드래그로 이동 (Ctrl+Z 실행취소)</div>
     <button id="chat-fab" title="설계 도우미에게 질문하기">💬</button>
     <div id="chatbox" hidden>
-      <div id="chat-head">🛟 배치 도우미 <span style="font-weight:400;color:#8b949e;font-size:11px">· 가구 배치, 인테리어 상식, 사용법 질문</span><span id="chat-close">✕</span></div>
+      <div id="chat-head"><span data-en="🛟 Layout assistant">🛟 배치 도우미</span> <span data-en="· Layout, interior design, and help" style="font-weight:400;color:#8b949e;font-size:11px">· 가구 배치, 인테리어 상식, 사용법 질문</span><span id="chat-close">✕</span></div>
       <div id="chat-msgs">
         <div class="chat-msg bot">안녕하세요! 인테리어가 처음이어도 괜찮아요. 예를 들어 이렇게 물어보세요:<br>· "책상 앞은 얼마나 비워야 해?"<br>· "침대는 창문 옆에 둬도 돼?"<br>· "동선은 어떻게 수정해?"</div>
       </div>
@@ -304,16 +307,16 @@
     </div>
   </div>
   <div id="errorpanel">
-    <h2>AI Copilot</h2>
+    <h2 data-en="AI Copilot">AI 코파일럿</h2>
     <div id="cmd-row">
       <input id="cmd-input" placeholder="예: 책상을 창가로 옮겨줘" />
       <button id="cmd-send">▶</button>
     </div>
     <div id="cmd-reply"></div>
-    <h2>Design Verification</h2>
-    <button id="inspect-btn">🔍 배치 검사 실행</button>
-    <button id="autofix-btn">🤖 전체 자동 수정 (Agent)</button>
-    <button id="report-btn">📄 검토 리포트</button>
+    <h2 data-en="Design verification">배치 검증</h2>
+    <button id="inspect-btn" data-en="🔍 Inspect layout">🔍 배치 검사 실행</button>
+    <button id="autofix-btn" data-en="🤖 Auto-fix all (Agent)">🤖 전체 자동 수정 (에이전트)</button>
+    <button id="report-btn" data-en="📄 Review report">📄 검토 리포트</button>
     <div id="summary"></div>
     <div id="no-errors">✅ 위반 사항 없음</div>
     <div id="err-list"></div>
@@ -324,6 +327,130 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+// ---------- Presentation-only localization ----------
+let lang = 'ko';
+try { if (localStorage.getItem('layout-language') === 'en') lang = 'en'; } catch {}
+let languageRevision = 0;
+const t = (ko, en) => lang === 'en' ? en : ko;
+const esc = value => String(value ?? '').replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const TYPE_NAMES = {
+  bed: ['침대', 'Bed'], wardrobe: ['옷장', 'Wardrobe'], desk: ['책상', 'Desk'],
+  sofa: ['소파', 'Sofa'], fridge: ['냉장고', 'Refrigerator'], bookshelf: ['책장', 'Bookshelf'],
+  tv_stand: ['TV장', 'TV stand'], washing_machine: ['세탁기', 'Washing machine'],
+  table: ['테이블', 'Table'], deck: ['바닥', 'Floor'], wall: ['벽', 'Wall'],
+  zone: ['구역', 'Zone'], walkway: ['동선', 'Walkway'],
+};
+const NAME_EN = {
+  '1인 주택 (거실·침실·서재, 9.6m x 6.0m)': 'Single-person home (living room, bedroom, study; 9.6m x 6.0m)',
+  '1인 주택 (거실·침실·서재, 9.0m x 6.0m)': 'Single-person home (living room, bedroom, study; 9.0m x 6.0m)',
+  '1인 원룸 Studio A (5.4m x 3.6m)': 'Studio A (5.4m x 3.6m)',
+  '거실·주방': 'Living room / kitchen', '거실': 'Living room', '주방': 'Kitchen',
+  '침실': 'Bedroom', '서재': 'Study', '바닥': 'Floor', '중앙': 'Center',
+  '현관문 개폐 구역': 'Entrance door clearance', '침실문 개폐 구역': 'Bedroom door clearance',
+  '서재문 개폐 구역': 'Study door clearance', '거실 창문 앞 구역': 'Living room window clearance',
+  '침실 창문 앞 구역': 'Bedroom window clearance',
+  '창문 앞 확보 구역': 'Window clearance', '퀸': 'Queen', '2인': 'Two-seat',
+  '내벽 A (서재쪽 하단)': 'Interior wall A (study side)',
+  '내벽 B (중앙)': 'Interior wall B (center)',
+  '내벽 C (침실쪽 상단)': 'Interior wall C (bedroom side)',
+  '내벽 D (침실-서재 사이)': 'Interior wall D (bedroom / study)',
+  '주 동선 (현관→침대)': 'Main walkway (entrance → bed)',
+  '동선: 현관→침실': 'Walkway: entrance → bedroom', '동선: 현관→서재': 'Walkway: entrance → study',
+};
+const typeName = type => TYPE_NAMES[type]?.[lang === 'en' ? 1 : 0] || t('객체', 'Object');
+function displayName(obj) {
+  const name = String(obj.name || '');
+  if (lang === 'ko') return name && name !== obj.id ? name : typeName(obj.type || obj.system);
+  if (NAME_EN[name]) return NAME_EN[name];
+  let translated = name;
+  for (const [ko, en] of Object.values(TYPE_NAMES)) {
+    if (translated === ko || translated.startsWith(ko + ' ') || translated.startsWith(ko + '(')) {
+      translated = en + translated.slice(ko.length);
+      break;
+    }
+  }
+  for (const [ko, en] of Object.entries(NAME_EN)) translated = translated.split(ko).join(en);
+  if (translated && translated !== obj.id && !/[가-힣]/.test(translated)) return translated;
+  // Arbitrary custom Korean names have no reliable translation: use a readable type and number.
+  const number = name.match(/\d+\s*$/)?.[0] || String(obj.id || '').match(/_(\d+)$/)?.[1];
+  return typeName(obj.type || obj.system) + (number ? ` ${number.trim()}` : '');
+}
+const shortName = obj => displayName(obj).replace(/\s*\([^)]*\)\s*$/, '').trim();
+const codeName = code => ({
+  HARD_CLASH: t('가구 충돌', 'Collision'), ZONE_INTRUSION: t('금지 구역 침범', 'Zone intrusion'),
+  MAINTENANCE_SPACE: t('사용 공간 부족', 'Insufficient usage space'),
+  OUT_OF_ROOM: t('방 경계 이탈', 'Outside room'), OUT_OF_BOUNDS: t('건물 경계 이탈', 'Outside building'),
+  CLEARANCE_VIOLATION: t('이격 거리 부족', 'Insufficient clearance'),
+}[code] || t('배치 위반', 'Layout violation'));
+const severityName = severity => severity === 'HIGH' ? t('높음', 'High') : t('중간', 'Medium');
+function api(path, options) {
+  const url = new URL(path, window.location.origin);
+  url.searchParams.set('lang', lang);
+  return fetch(url, options).then(response => {
+    if (!response.ok) throw new Error(t('요청 실패', 'Request failed') + ` (${response.status})`);
+    return response;
+  });
+}
+function localizeStatic() {
+  document.documentElement.lang = lang;
+  document.title = t('AI 가구 배치 검토 도우미', 'AI Home Layout Debugger');
+  document.getElementById('language').value = lang;
+  document.querySelectorAll('[data-en]').forEach(el => {
+    if (!el.dataset.ko) el.dataset.ko = el.textContent;
+    el.textContent = lang === 'en' ? el.dataset.en : el.dataset.ko;
+  });
+  document.querySelectorAll('#add-type option').forEach(el => { el.textContent = typeName(el.value); });
+  for (const [id, ko, en] of [
+    ['undo-btn', '실행취소 (Ctrl+Z)', 'Undo (Ctrl+Z)'],
+    ['redo-btn', '다시실행 (Ctrl+Y)', 'Redo (Ctrl+Y)'],
+    ['chat-fab', '설계 도우미에게 질문하기', 'Ask the layout assistant'],
+    ['chat-close', '닫기', 'Close'], ['chat-go', '질문 보내기', 'Send question'],
+    ['cmd-send', '명령 실행', 'Run command'],
+  ]) {
+    const el = document.getElementById(id);
+    el.title = t(ko, en);
+    el.setAttribute('aria-label', t(ko, en));
+  }
+  document.getElementById('chat-in').placeholder = t('무엇이든 물어보세요…', 'Ask anything…');
+  document.getElementById('cmd-input').placeholder = t('예: 책상을 창가로 옮겨줘', 'Example: Move the desk to the window');
+  document.getElementById('scene-name').textContent = sceneData ? sceneName(sceneData.meta.name) : t('불러오는 중…', 'Loading…');
+}
+function sceneName(name) {
+  return lang === 'ko' ? name : NAME_EN[name] || (/[가-힣]/.test(name) ? 'Home layout' : name);
+}
+function resetChat() {
+  chatHistory.length = 0;
+  document.getElementById('chat-msgs').replaceChildren();
+  chatMsg(t('안녕하세요! 가구 배치와 사용법을 물어보세요.\n· 책상 앞은 얼마나 비워야 해?\n· 침대는 창문 옆에 둬도 돼?\n· 동선은 어떻게 수정해?',
+    'Hello! Ask me about furniture layouts and how to use this app.\n· How much space should I leave in front of a desk?\n· Can a bed go next to a window?\n· How do I edit a walkway?'), 'bot');
+}
+async function changeLanguage() {
+  lang = document.getElementById('language').value === 'en' ? 'en' : 'ko';
+  languageRevision++;
+  try { localStorage.setItem('layout-language', lang); } catch {}
+  const keepId = selectedId;
+  const reportOpen = !!document.getElementById('report-overlay');
+  document.getElementById('report-overlay')?.remove();
+  document.getElementById('cmd-reply').replaceChildren();
+  tooltip.style.display = 'none';
+  resetChat();
+  localizeStatic();
+  clearGhosts();
+  if (sceneData) renderScene(sceneData);
+  if (keepId && registry.has(keepId)) select(keepId);
+  document.getElementById('err-list').replaceChildren();
+  document.getElementById('summary').replaceChildren();
+  document.getElementById('no-errors').style.display = 'none';
+  try {
+    await runInspection();
+    if (reportOpen) await showReport();
+  } catch {
+    document.getElementById('err-list').textContent = t('⚠ 결과를 불러오지 못했습니다. 다시 검사해 주세요.', '⚠ Could not load results. Run inspection again.');
+  }
+}
+document.getElementById('language').onchange = changeLanguage;
 
 // ---------- Renderer / Scene ----------
 const canvas = document.getElementById('canvas3d');
@@ -408,7 +535,7 @@ function register(id, name, mesh, listContainer, colorHex, sub = '') {
     const el = document.createElement('div');
     el.className = 'item';
     el.innerHTML = `<span class="dot" style="background:#${colorHex.toString(16).padStart(6, '0')}"></span>
-                    <span>${id}</span><span class="sub">${sub}</span>`;
+                    <span>${esc(name)}</span><span class="sub">${esc(sub)}</span>`;
     el.title = name;
     el.onclick = () => select(id, true);
     document.getElementById(listContainer).appendChild(el);
@@ -452,7 +579,9 @@ function updatePropsPanel(id) {
   panel.style.display = 'flex';
   empty.style.display = 'none';
   document.getElementById('prop-id').value = info.ref.id;
-  document.getElementById('prop-name').value = info.ref.name;
+  const nameInput = document.getElementById('prop-name');
+  nameInput.value = displayName(info.ref);
+  nameInput.dataset.displayed = nameInput.value;
   const isPipe = info.kind === 'pipe';
   document.getElementById('prop-rotate').style.display = info.kind === 'equipment' ? '' : 'none';
   document.getElementById('prop-dia-row').style.display = isPipe ? 'flex' : 'none';
@@ -486,8 +615,8 @@ document.getElementById('prop-apply').onclick = async () => {
   if (!info) return;
   const newId = document.getElementById('prop-id').value.trim();
   const newName = document.getElementById('prop-name').value.trim();
-  if (!newId) { alert('ID는 비울 수 없습니다'); return; }
-  if (newId !== info.ref.id && objIndex.has(newId)) { alert(`ID '${newId}'는 이미 사용 중입니다`); return; }
+  if (!newId) { alert(t('ID는 비울 수 없습니다', 'ID cannot be empty')); return; }
+  if (newId !== info.ref.id && objIndex.has(newId)) { alert(t(`ID '${newId}'는 이미 사용 중입니다`, `ID '${newId}' is already in use`)); return; }
   // rename: keep pipe from/to references in sync
   if (newId !== info.ref.id && info.kind === 'equipment') {
     for (const p of sceneData.pipes) {
@@ -496,7 +625,9 @@ document.getElementById('prop-apply').onclick = async () => {
     }
   }
   info.ref.id = newId;
-  info.ref.name = newName || newId;
+  // Applying dimensions in English must not overwrite the canonical Korean name.
+  if (newName && newName !== document.getElementById('prop-name').dataset.displayed)
+    info.ref.name = newName;
   if (info.kind === 'pipe') {
     const dia = parseFloat(document.getElementById('prop-dia').value);
     if (dia > 0) info.ref.diameter_mm = dia;
@@ -550,7 +681,7 @@ function editTarget(id) {
 }
 
 async function pushScene() {
-  await fetch('/api/scene', {
+  await api('/api/scene', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(sceneData),
@@ -661,9 +792,9 @@ function addBox(obj, type, listContainer, materialColor) {
     g.rotation.z = rot * Math.PI / 180;
     // stored box is the world AABB; the model is built with its natural (unrotated) dims
     const natural = (rot % 180) ? [size[1], size[0], size[2]] : size;
-    g.userData = { id: obj.id, name: obj.name };
+    g.userData = { id: obj.id, name: displayName(obj) };
     root.add(g);
-    register(obj.id, obj.name, g, listContainer, materialColor, type); // group first (gizmo target)
+    register(obj.id, displayName(obj), g, listContainer, materialColor, typeName(type)); // group first (gizmo target)
     FURNITURE_BUILDERS[type](g, natural, materialColor);
     // faint collision-box outline (in natural dims; rotates with the group)
     g.add(new THREE.LineSegments(
@@ -671,12 +802,12 @@ function addBox(obj, type, listContainer, materialColor) {
       new THREE.LineBasicMaterial({ color: materialColor, transparent: true, opacity: 0.3 })));
     for (const ch of g.children) {
       if (ch.isMesh) {
-        ch.userData = { id: obj.id, name: obj.name };
+        ch.userData = { id: obj.id, name: displayName(obj) };
         pickables.push(ch);
         registry.get(obj.id).meshes.push(ch);
       }
     }
-    addLabel(obj.id, g.position.clone().add(new THREE.Vector3(0, 0, size[2] / 2 + 0.35)));
+    addLabel(shortName(obj), g.position.clone().add(new THREE.Vector3(0, 0, size[2] / 2 + 0.35)));
     return g;
   }
 
@@ -694,9 +825,9 @@ function addBox(obj, type, listContainer, materialColor) {
     new THREE.EdgesGeometry(geo),
     new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }));
   mesh.add(edges);
-  register(obj.id, obj.name, mesh, listContainer, materialColor, type);
+  register(obj.id, displayName(obj), mesh, listContainer, materialColor, typeName(type));
   if (type !== 'wall' && type !== 'deck')
-    addLabel(obj.id, mesh.position.clone().add(new THREE.Vector3(0, 0, size[2] / 2 + 0.35)));
+    addLabel(shortName(obj), mesh.position.clone().add(new THREE.Vector3(0, 0, size[2] / 2 + 0.35)));
   return mesh;
 }
 
@@ -714,16 +845,16 @@ function addPipe(pipe) {
       new THREE.Vector3(0, 1, 0),
       b.clone().sub(a).normalize());
     root.add(mesh);
-    register(pipe.id, pipe.name, mesh, 'list-pipes', color, `폭${pipe.diameter_mm}`);
+    register(pipe.id, displayName(pipe), mesh, 'list-pipes', color, `${t('폭', 'Width')} ${pipe.diameter_mm} mm`);
   }
   // elbows
   for (let i = 1; i < pts.length - 1; i++) {
     const s = new THREE.Mesh(new THREE.SphereGeometry(r * 1.15, 16, 16), matFor(color));
     s.position.copy(pts[i]);
     root.add(s);
-    register(pipe.id, pipe.name, s, 'list-pipes', color);
+    register(pipe.id, displayName(pipe), s, 'list-pipes', color);
   }
-  addLabel(pipe.id, pts[Math.floor(pts.length / 2)].clone().add(new THREE.Vector3(0, 0, 0.45)));
+  addLabel(shortName(pipe), pts[Math.floor(pts.length / 2)].clone().add(new THREE.Vector3(0, 0, 0.45)));
 }
 
 function addLabel(text, posZup) {
@@ -776,7 +907,7 @@ canvas.addEventListener('pointermove', (e) => {
     tooltip.style.display = 'block';
     tooltip.style.left = (e.clientX - rect.left + 14) + 'px';
     tooltip.style.top = (e.clientY - rect.top + 14) + 'px';
-    tooltip.textContent = `${hit.object.userData.id} · ${hit.object.userData.name}`;
+    tooltip.textContent = hit.object.userData.name;
     canvas.style.cursor = 'pointer';
   } else {
     tooltip.style.display = 'none';
@@ -825,6 +956,11 @@ canvas.addEventListener('dblclick', (e) => {
 
 // ---------- Load scene ----------
 async function loadScene() {
+  const data = await (await api('/api/scene')).json();
+  renderScene(data);
+}
+
+function renderScene(data) {
   // clear previous 3D objects + sidebar
   tcontrols.detach();
   clearHandles();
@@ -839,14 +975,13 @@ async function loadScene() {
   for (const lid of ['list-equipment', 'list-pipes', 'list-structures'])
     document.getElementById(lid).innerHTML = '';
 
-  const data = await (await fetch('/api/scene')).json();
   sceneData = data;
   document.getElementById('pipes-header').style.display = (data.pipes && data.pipes.length) ? '' : 'none';
   objIndex = new Map();
   for (const s of data.structures) objIndex.set(s.id, { kind: 'structure', ref: s });
   for (const eq of data.equipment) objIndex.set(eq.id, { kind: 'equipment', ref: eq });
   for (const p of data.pipes) objIndex.set(p.id, { kind: 'pipe', ref: p });
-  document.getElementById('scene-name').textContent = data.meta.name;
+  document.getElementById('scene-name').textContent = sceneName(data.meta.name);
   addRoom(data.meta.room);
   const ROOM_COLORS = [0x4dabf7, 0xda77f2, 0x69db7c, 0xffa94d];
   (data.rooms || []).forEach((r, i) => {
@@ -862,11 +997,12 @@ async function loadScene() {
       new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.5 }));
     outline.position.copy(plate.position);
     root.add(outline);
-    addLabel(r.name, new THREE.Vector3(plate.position.x, r.box.max[1] - 0.35, 0.05));
+    addLabel(shortName(r), new THREE.Vector3(plate.position.x, r.box.max[1] - 0.35, 0.05));
   });
   for (const s of data.structures) addBox(s, s.type, 'list-structures', COLORS[s.type] ?? 0x555555);
   for (const eq of data.equipment) addBox(eq, eq.type, 'list-equipment', COLORS[eq.type] ?? 0x888888);
   for (const p of data.pipes) addPipe(p);
+  updatePropsPanel(null);
 }
 
 // ---------- Inspection ----------
@@ -909,21 +1045,23 @@ function focusOn(loc) {
 }
 
 async function runInspection() {
-  const res = await (await fetch('/api/inspect')).json();
+  const revision = languageRevision;
+  const res = await (await api('/api/inspect')).json();
+  if (revision !== languageRevision) return;
   const { summary, violations } = res;
 
   const sc = summary.score;
   const scColor = sc >= 100 ? '#3fb950' : sc >= 70 ? '#d29922' : '#f85149';
   document.getElementById('summary').innerHTML = `
-    <div class="stat"><b>${summary.checks_run}</b><span>검사</span></div>
-    <div class="stat ok"><b>${summary.passed}</b><span>통과</span></div>
-    <div class="stat bad"><b>${summary.violations}</b><span>위반</span></div>
-    <div class="stat"><b style="color:${scColor}">${sc}</b><span>점수</span></div>`;
+    <div class="stat"><b>${esc(summary.checks_run)}</b><span>${t('검사', 'Checks')}</span></div>
+    <div class="stat ok"><b>${esc(summary.passed)}</b><span>${t('통과', 'Passed')}</span></div>
+    <div class="stat bad"><b>${esc(summary.violations)}</b><span>${t('위반', 'Violations')}</span></div>
+    <div class="stat"><b style="color:${scColor}">${esc(sc)}</b><span>${t('점수', 'Score')}</span></div>`;
   const ne = document.getElementById('no-errors');
   ne.style.display = violations.length ? 'none' : 'block';
   if (!violations.length)
-    ne.innerHTML = '🏆 <b>배치 승인 가능</b> — 모든 검사 통과 (100점)<br>' +
-                   '<span style="font-size:11px;color:#8b949e">📄 검토 리포트에서 수정 이력을 확인하세요</span>';
+    ne.innerHTML = `🏆 <b>${t('배치 승인 가능', 'Layout ready for approval')}</b> — ${t('모든 검사 통과 (100점)', 'All checks passed (100 points)')}<br>` +
+                   `<span style="font-size:11px;color:#8b949e">${t('📄 검토 리포트에서 수정 이력을 확인하세요', '📄 See the review report for edit history')}</span>`;
 
   // reset previous highlights/markers
   registry.forEach((_, id) => setViolationHighlight(id, false));
@@ -940,12 +1078,13 @@ async function runInspection() {
     card.className = `err-card ${v.severity}`;
     card.innerHTML = `
       <div class="row1">
-        <span class="eid">⚠ ${v.id}</span>
-        <span class="sev ${v.severity}">${v.severity}</span>
-        <span class="code">${v.code}</span>
+        <span class="eid">⚠ ${esc(v.id)}</span>
+        <span class="sev ${esc(v.severity)}">${severityName(v.severity)}</span>
+        <span class="code">${codeName(v.code)}</span>
       </div>
-      <div class="subjects">${v.a.id} ↔ ${v.b.id}</div>
-      <div class="nums">실측 <b>${v.measured_mm} mm</b> · 요구 ${v.required_mm} mm</div>`;
+      <div class="subjects">${esc(v.a.name)} ↔ ${esc(v.b.name)}</div>
+      <div class="nums">${t('실측', 'Measured')} <b>${esc(v.measured_mm)} mm</b> · ${t('요구', 'Required')} ${esc(v.required_mm)} mm</div>`;
+    card.title = v.detail || '';
     card.onclick = (e) => {
       if (e.target.tagName === 'BUTTON') return; // candidate buttons handle themselves
       if (selectedErrCard && selectedErrCard !== card) selectedErrCard.classList.remove('selected');
@@ -997,7 +1136,7 @@ function previewCandidate(cand) {
 }
 
 async function applyCandidate(cand) {
-  await fetch('/api/apply', {
+  await api('/api/apply', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: cand.action, description: cand.description }),
@@ -1008,17 +1147,25 @@ async function applyCandidate(cand) {
 }
 
 async function toggleCandidates(card, violation) {
+  const revision = languageRevision;
   let wrap = card.querySelector('.cand-wrap');
   if (wrap) { wrap.remove(); clearGhosts(); return; }
   wrap = document.createElement('div');
   wrap.className = 'cand-wrap';
-  wrap.innerHTML = '<div class="cand-loading">⚙ 해결안 계산·검증 중…</div>';
+  wrap.innerHTML = `<div class="cand-loading">${t('⚙ 해결안 계산·검증 중…', '⚙ Computing and verifying fixes…')}</div>`;
   card.appendChild(wrap);
 
-  const res = await (await fetch(`/api/resolve/${violation.id}`)).json();
+  let res;
+  try {
+    res = await (await api(`/api/resolve/${encodeURIComponent(violation.id)}`)).json();
+  } catch {
+    wrap.textContent = t('⚠ 해결안 요청에 실패했습니다.', '⚠ Could not load fixes.');
+    return;
+  }
+  if (revision !== languageRevision || !wrap.isConnected) return;
   wrap.innerHTML = '';
   if (!res.candidates || res.candidates.length === 0) {
-    wrap.innerHTML = '<div class="cand-loading">자동 해결안을 찾지 못했습니다 (수동 검토 필요)</div>';
+    wrap.innerHTML = `<div class="cand-loading">${t('자동 해결안을 찾지 못했습니다 (수동 검토 필요)', 'No automatic fix found (manual review required)')}</div>`;
     return;
   }
   for (const c of res.candidates) {
@@ -1026,18 +1173,18 @@ async function toggleCandidates(card, violation) {
     div.className = 'cand' + (c.recommended ? ' rec' : '');
     div.innerHTML = `
       <div class="c-head">
-        <span class="opt">${c.option}안</span>
-        ${c.recommended ? '<span class="rec-badge">★ 추천</span>' : ''}
+        <span class="opt">${t(`${esc(c.option)}안`, `Option ${esc(c.option)}`)}</span>
+        ${c.recommended ? `<span class="rec-badge">${t('★ 추천', '★ Recommended')}</span>` : ''}
         <span class="vbadge" ${c.verified ? '' : 'style="color:#d29922"'}>
-          ${c.verified ? `✓ 검증됨 · 잔여 위반 ${c.violations_after}건`
-                       : `⚠ 신규 위반 ${c.new_violations}건 유발 · 잔여 ${c.violations_after}건`}
+          ${c.verified ? t(`✓ 검증됨 · 잔여 위반 ${esc(c.violations_after)}건`, `✓ Verified · ${esc(c.violations_after)} remaining`)
+                       : t(`⚠ 신규 위반 ${esc(c.new_violations)}건 유발 · 잔여 ${esc(c.violations_after)}건`, `⚠ ${esc(c.new_violations)} new violations · ${esc(c.violations_after)} remaining`)}
         </span>
       </div>
-      <div class="c-desc">${c.description}</div>
-      <div class="c-impact">영향: ${c.impact} · 이동량 ${c.displacement_mm} mm</div>
+      <div class="c-desc">${esc(c.description)}</div>
+      <div class="c-impact">${t('영향', 'Impact')}: ${esc(c.impact)} · ${t('이동량', 'Displacement')} ${esc(c.displacement_mm)} mm</div>
       <div class="c-btns">
-        <button class="preview">👁 미리보기</button>
-        <button class="apply">✓ 적용</button>
+        <button class="preview">${t('👁 미리보기', '👁 Preview')}</button>
+        <button class="apply">${t('✓ 적용', '✓ Apply')}</button>
       </div>`;
     div.querySelector('.preview').onclick = () => previewCandidate(c);
     div.querySelector('.apply').onclick = () => applyCandidate(c);
@@ -1046,29 +1193,36 @@ async function toggleCandidates(card, violation) {
   // AI analysis (Explain + Learn)
   const aiBtn = document.createElement('button');
   aiBtn.className = 'ai-btn';
-  aiBtn.textContent = '🤖 AI 분석 (원인 · 영향 · 추천 근거 · 과거 사례)';
+  aiBtn.textContent = t('🤖 AI 분석 (원인 · 영향 · 추천 근거 · 과거 사례)', '🤖 AI analysis (cause · impact · rationale · past cases)');
   aiBtn.onclick = async () => {
     aiBtn.remove();
     const box = document.createElement('div');
     box.className = 'ai-box';
-    box.innerHTML = '<div class="ai-loading">🤖 AI가 규정과 과거 사례를 검토하고 있습니다…</div>';
+    box.innerHTML = `<div class="ai-loading">${t('🤖 AI가 규정과 과거 사례를 검토하고 있습니다…', '🤖 AI is reviewing rules and past cases…')}</div>`;
     wrap.appendChild(box);
-    const r = await (await fetch(`/api/explain/${violation.id}`)).json();
+    let r;
+    try {
+      r = await (await api(`/api/explain/${encodeURIComponent(violation.id)}`)).json();
+    } catch {
+      box.textContent = t('⚠ AI 분석에 실패했습니다.', '⚠ AI analysis failed.');
+      return;
+    }
+    if (revision !== languageRevision || !box.isConnected) return;
     const a = r.analysis;
     box.innerHTML = `
-      <h4>왜 문제인가</h4><div>${a.why}</div>
-      <h4>예상 영향</h4><ul>${a.impact.map(i => `<li>${i}</li>`).join('')}</ul>
-      <h4>추천 근거</h4><div>${a.recommendation}</div>
-      <h4>과거 유사 사례</h4><div>${a.past_case}</div>
-      <div class="kb">근거: 규정 ${a.knowledge_used.rules.join(', ')} · 사례 ${a.knowledge_used.cases.join(', ')}
-      ${a.llm ? '· Claude 생성' : '· 템플릿 (LLM 미연결)'}</div>`;
+      <h4>${t('왜 문제인가', 'Why this matters')}</h4><div>${esc(a.why)}</div>
+      <h4>${t('예상 영향', 'Expected impact')}</h4><ul>${(a.impact || []).map(i => `<li>${esc(i)}</li>`).join('')}</ul>
+      <h4>${t('추천 근거', 'Recommendation rationale')}</h4><div>${esc(a.recommendation)}</div>
+      <h4>${t('과거 유사 사례', 'Similar past cases')}</h4><div>${esc(a.past_case)}</div>
+      <div class="kb">${t('근거: 규정', 'Sources: rules')} ${esc((a.knowledge_used?.rules || []).join(', '))} · ${t('사례', 'cases')} ${esc((a.knowledge_used?.cases || []).join(', '))}
+      ${a.llm ? t('· Claude 생성', '· Generated by Claude') : t('· 템플릿 (LLM 미연결)', '· Template (LLM offline)')}</div>`;
   };
   wrap.appendChild(aiBtn);
   previewCandidate(res.candidates[0]); // auto-preview the recommended fix
 }
 
 document.getElementById('reset-btn').onclick = async () => {
-  await fetch('/api/reset', { method: 'POST' });
+  await api('/api/reset', { method: 'POST' });
   clearGhosts();
   await loadScene();
   await runInspection();
@@ -1087,7 +1241,10 @@ document.getElementById('add-obj').onclick = async () => {
   const r = sceneData.meta.room;
   const cx = (r.min[0] + r.max[0]) / 2, cy = (r.min[1] + r.max[1]) / 2;
   const id = nextId(type);
-  const obj = { id, name: id, type, box: {
+  let number = 1;
+  while (sceneData.equipment.some(obj => obj.type === type &&
+    (obj.name === `${TYPE_NAMES[type][0]} ${number}` || (number === 1 && !/\d+\s*$/.test(obj.name))))) number++;
+  const obj = { id, name: `${TYPE_NAMES[type][0]} ${number}`, type, box: {
     min: [cx - sx / 2, cy - sy / 2, 0], max: [cx + sx / 2, cy + sy / 2, sz] } };
   sceneData.equipment.push(obj);
   await commitEdit(id);
@@ -1105,10 +1262,10 @@ document.getElementById('del-obj').onclick = async () => {
 };
 
 document.getElementById('save-btn').onclick = async (e) => {
-  await fetch('/api/save', { method: 'POST' });
+  await api('/api/save', { method: 'POST' });
   const btn = e.target;
-  btn.textContent = '✓ 저장됨';
-  setTimeout(() => { btn.textContent = '💾 저장'; }, 1500);
+  btn.textContent = t('✓ 저장됨', '✓ Saved');
+  setTimeout(() => { btn.textContent = t('💾 저장', '💾 Save'); }, 1500);
 };
 
 // ---------- Undo / Redo ----------
@@ -1117,8 +1274,8 @@ async function refresh() {
   await loadScene();
   await runInspection();
 }
-async function doUndo() { await fetch('/api/undo', { method: 'POST' }); await refresh(); }
-async function doRedo() { await fetch('/api/redo', { method: 'POST' }); await refresh(); }
+async function doUndo() { await api('/api/undo', { method: 'POST' }); await refresh(); }
+async function doRedo() { await api('/api/redo', { method: 'POST' }); await refresh(); }
 document.getElementById('undo-btn').onclick = doUndo;
 document.getElementById('redo-btn').onclick = doRedo;
 window.addEventListener('keydown', (e) => {
@@ -1130,40 +1287,48 @@ window.addEventListener('keydown', (e) => {
 
 // ---------- Auto-Fix All (agent loop) ----------
 document.getElementById('autofix-btn').onclick = async (e) => {
+  const revision = languageRevision;
   const btn = e.target;
   btn.disabled = true;
-  btn.textContent = '🤖 자동 수정 중… (검출→해결안→검증 반복)';
+  btn.textContent = t('🤖 자동 수정 중… (검출→해결안→검증 반복)', '🤖 Auto-fixing… (detect → resolve → verify)');
   try {
-    const r = await (await fetch('/api/autofix', { method: 'POST' })).json();
+    const r = await (await api('/api/autofix', { method: 'POST' })).json();
     const box = document.getElementById('cmd-reply');
     const done = r.steps.filter(s => s.action);
     const failed = r.steps.filter(s => !s.action);
-    box.innerHTML = `<div class="msg">🤖 자동 수정 완료 — ${done.length}건 해결` +
-      (failed.length ? `, ${failed.length}건은 수동 검토 필요` : '') +
-      ` (잔여 위반 ${r.inspection.summary.violations}건)</div>` +
+    if (revision === languageRevision) box.innerHTML = `<div class="msg">${t(`🤖 자동 수정 완료 — ${done.length}건 해결`, `🤖 Auto-fix complete — ${done.length} resolved`)}` +
+      (failed.length ? t(`, ${failed.length}건은 수동 검토 필요`, `, ${failed.length} need manual review`) : '') +
+      ` (${t(`잔여 위반 ${esc(r.inspection.summary.violations)}건`, `${esc(r.inspection.summary.violations)} remaining violations`)})</div>` +
       r.steps.map(s => s.action
-        ? `<div class="step"><b>✓</b> ${s.violation} → ${s.action}${s.verified ? '' : ' ⚠'}</div>`
-        : `<div class="step fail"><b>✗</b> ${s.violation} → 해결안 없음</div>`).join('');
+        ? `<div class="step"><b>✓</b> ${esc(s.violation)} → ${esc(s.action)}${s.verified ? '' : ' ⚠'}</div>`
+        : `<div class="step fail"><b>✗</b> ${esc(s.violation)} → ${t('해결안 없음', 'No fix found')}</div>`).join('');
+  } catch {
+    if (revision === languageRevision) document.getElementById('cmd-reply').textContent = t('⚠ 자동 수정에 실패했습니다.', '⚠ Auto-fix failed.');
   } finally {
     btn.disabled = false;
-    btn.textContent = '🤖 전체 자동 수정 (Agent)';
+    btn.textContent = t('🤖 전체 자동 수정 (에이전트)', '🤖 Auto-fix all (Agent)');
   }
   await refresh();
 };
 
 // ---------- Review report ----------
-document.getElementById('report-btn').onclick = async () => {
-  const r = await (await fetch('/api/report')).json();
+async function showReport() {
+  const revision = languageRevision;
+  const r = await (await api('/api/report')).json();
+  if (revision !== languageRevision) return;
   const s = r.summary;
-  const sevKo = { HIGH: '높음', MEDIUM: '중간' };
-  const kindKo = { edit: '수동 편집', fix: '해결안 적용', agent: 'AI 자동 수정', copilot: 'AI 명령', undo: '실행취소', redo: '재실행', save: '저장' };
+  const kinds = {
+    edit: t('수동 편집', 'Manual edit'), fix: t('해결안 적용', 'Applied fix'),
+    agent: t('AI 자동 수정', 'AI auto-fix'), copilot: t('AI 명령', 'AI command'),
+    undo: t('실행취소', 'Undo'), redo: t('재실행', 'Redo'), save: t('저장', 'Save'),
+  };
   const vRows = r.violations.length
-    ? r.violations.map(v => `<tr><td>${v.id}</td><td>${sevKo[v.severity] || v.severity}</td><td>${v.code}</td><td>${v.detail}</td><td style="text-align:right">${v.measured_mm} / ${v.required_mm} mm</td></tr>`).join('')
-    : '<tr><td colspan="5" style="text-align:center;color:#2b8a3e"><b>잔여 위반 없음 — 배치 승인 가능</b></td></tr>';
+    ? r.violations.map(v => `<tr><td>${esc(v.id)}</td><td>${severityName(v.severity)}</td><td>${codeName(v.code)}</td><td>${esc(v.detail)}</td><td style="text-align:right">${esc(v.measured_mm)} / ${esc(v.required_mm)} mm</td></tr>`).join('')
+    : `<tr><td colspan="5" style="text-align:center;color:#2b8a3e"><b>${t('잔여 위반 없음 — 배치 승인 가능', 'No remaining violations — layout ready for approval')}</b></td></tr>`;
   const hRows = r.history.length
-    ? r.history.map(h => `<tr><td>${h.time}</td><td>${kindKo[h.kind] || h.kind}</td><td>${h.text}</td></tr>`).join('')
-    : '<tr><td colspan="3" style="color:#868e96">이번 세션의 수정 이력이 없습니다</td></tr>';
-  const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>배치 검토 리포트</title>
+    ? r.history.map(h => `<tr><td>${esc(h.time)}</td><td>${esc(kinds[h.kind] || h.kind)}</td><td>${esc(h.text)}</td></tr>`).join('')
+    : `<tr><td colspan="3" style="color:#868e96">${t('이번 세션의 수정 이력이 없습니다', 'No edits in this session')}</td></tr>`;
+  const html = `<!DOCTYPE html><html lang="${lang}"><head><meta charset="UTF-8"><title>${t('배치 검토 리포트', 'Layout review report')}</title>
 <style>
  body{font-family:'Segoe UI',sans-serif;max-width:860px;margin:32px auto;padding:0 24px;color:#212529}
  h1{font-size:22px;border-bottom:2px solid #212529;padding-bottom:8px} h2{font-size:15px;margin-top:28px}
@@ -1175,57 +1340,66 @@ document.getElementById('report-btn').onclick = async () => {
  .foot{margin-top:32px;font-size:11px;color:#868e96;border-top:1px solid #dee2e6;padding-top:8px}
  @media print {.noprint{display:none}}
 </style></head><body>
-<h1>🏠 가구 배치 검토 리포트</h1>
-<p class="meta">${r.scene_name} · 생성 ${r.generated} · AI Home Layout Debugger</p>
+<h1>${t('🏠 가구 배치 검토 리포트', '🏠 Furniture layout review report')}</h1>
+<p class="meta">${esc(sceneName(r.scene_name))} · ${t('생성', 'Generated')} ${esc(r.generated)} · ${t('AI 가구 배치 검토 도우미', 'AI Home Layout Debugger')}</p>
 <div class="cards">
- <div class="card"><div class="score" style="color:${s.score >= 100 ? '#2b8a3e' : s.score >= 70 ? '#e8590c' : '#c92a2a'}">${s.score}</div><span>배치 점수</span></div>
- <div class="card"><div class="score">${s.checks_run}</div><span>검사 항목</span></div>
- <div class="card"><div class="score" style="color:#2b8a3e">${s.passed}</div><span>통과</span></div>
- <div class="card"><div class="score" style="color:${s.violations ? '#c92a2a' : '#2b8a3e'}">${s.violations}</div><span>잔여 위반</span></div>
+ <div class="card"><div class="score" style="color:${s.score >= 100 ? '#2b8a3e' : s.score >= 70 ? '#e8590c' : '#c92a2a'}">${esc(s.score)}</div><span>${t('배치 점수', 'Layout score')}</span></div>
+ <div class="card"><div class="score">${esc(s.checks_run)}</div><span>${t('검사 항목', 'Checks')}</span></div>
+ <div class="card"><div class="score" style="color:#2b8a3e">${esc(s.passed)}</div><span>${t('통과', 'Passed')}</span></div>
+ <div class="card"><div class="score" style="color:${s.violations ? '#c92a2a' : '#2b8a3e'}">${esc(s.violations)}</div><span>${t('잔여 위반', 'Remaining violations')}</span></div>
 </div>
-<h2>잔여 위반 사항</h2>
-<table><tr><th>ID</th><th>심각도</th><th>유형</th><th>내용</th><th>실측/요구</th></tr>${vRows}</table>
-<h2>세션 수정 이력</h2>
-<table><tr><th style="width:80px">시각</th><th style="width:110px">구분</th><th>내용</th></tr>${hRows}</table>
-<p class="foot">본 리포트의 모든 수치와 판정은 결정론적 기하 검증 엔진의 출력입니다 (AI는 설명에만 관여).
- 점수 = 100 − (높음 위반 × 15) − (중간 위반 × 7)</p>
-<button class="noprint" onclick="print()" style="margin-top:12px;padding:8px 20px">🖨 인쇄 / PDF 저장</button>
+<h2>${t('잔여 위반 사항', 'Remaining violations')}</h2>
+<table><tr><th>ID</th><th>${t('심각도', 'Severity')}</th><th>${t('유형', 'Type')}</th><th>${t('내용', 'Details')}</th><th>${t('실측/요구', 'Measured / required')}</th></tr>${vRows}</table>
+<h2>${t('세션 수정 이력', 'Session edit history')}</h2>
+<p class="meta">${t('이력 내용은 작업 당시의 언어로 표시됩니다.', 'History entries are shown in the language originally recorded.')}</p>
+<table><tr><th style="width:80px">${t('시각', 'Time')}</th><th style="width:110px">${t('구분', 'Category')}</th><th>${t('내용', 'Details')}</th></tr>${hRows}</table>
+<p class="foot">${t('본 리포트의 모든 수치와 판정은 결정론적 기하 검증 엔진의 출력입니다 (AI는 설명에만 관여). 점수 = 100 − (높음 위반 × 15) − (중간 위반 × 7)',
+  'All measurements and decisions come from the deterministic geometry engine (AI only provides explanations). Score = 100 − (high violations × 15) − (medium violations × 7)')}</p>
+<button class="noprint" onclick="print()" style="margin-top:12px;padding:8px 20px">${t('🖨 인쇄 / PDF 저장', '🖨 Print / Save PDF')}</button>
 </body></html>`;
   document.getElementById('report-overlay')?.remove();
   const ov = document.createElement('div');
   ov.id = 'report-overlay';
   ov.innerHTML = `<div id="report-box">
-    <div id="report-head"><span>📄 배치 검토 리포트</span><button id="report-close">✕ 닫기</button></div>
-    <iframe id="report-frame"></iframe></div>`;
+    <div id="report-head"><span>${t('📄 배치 검토 리포트', '📄 Layout review report')}</span><button id="report-close">${t('✕ 닫기', '✕ Close')}</button></div>
+    <iframe id="report-frame" title="${t('배치 검토 리포트', 'Layout review report')}"></iframe></div>`;
   document.body.appendChild(ov);
   ov.querySelector('#report-close').onclick = () => ov.remove();
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   ov.querySelector('#report-frame').srcdoc = html;
-};
+}
+document.getElementById('report-btn').onclick = showReport;
 
 // ---------- Natural-language commands ----------
 async function sendCommand() {
+  const revision = languageRevision;
   const input = document.getElementById('cmd-input');
   const btn = document.getElementById('cmd-send');
   const text = input.value.trim();
-  if (!text) return;
+  if (!text || btn.disabled) return;
   const box = document.getElementById('cmd-reply');
   btn.disabled = true; input.disabled = true;
-  box.innerHTML = '<div class="msg">🤖 AI가 설계 명령을 해석하고 있습니다…</div>';
+  box.innerHTML = `<div class="msg">${t('🤖 AI가 설계 명령을 해석하고 있습니다…', '🤖 AI is interpreting your design command…')}</div>`;
   try {
-    const r = await (await fetch('/api/command', {
+    const r = await (await api('/api/command', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     })).json();
-    if (r.error) {
-      box.innerHTML = `<div class="msg">⚠ ${r.error}</div>`;
-    } else {
-      box.innerHTML = `<div class="msg">🤖 ${r.reply || '완료'}</div>` +
-        (r.applied || []).map(a => `<div class="step"><b>✓</b> ${a}</div>`).join('') +
-        (r.errors || []).map(er => `<div class="step fail"><b>✗</b> ${er}</div>`).join('');
+    if (revision === languageRevision) {
+      if (r.error) {
+        box.innerHTML = `<div class="msg">⚠ ${esc(r.error)}</div>`;
+      } else {
+        box.innerHTML = `<div class="msg">🤖 ${esc(r.reply || t('완료', 'Done'))}</div>` +
+          (r.applied || []).map(a => `<div class="step"><b>✓</b> ${esc(a)}</div>`).join('') +
+          (r.errors || []).map(er => `<div class="step fail"><b>✗</b> ${esc(er)}</div>`).join('');
+      }
+    }
+    if (!r.error) {
       input.value = '';
     }
+  } catch {
+    if (revision === languageRevision) box.textContent = t('⚠ 명령 처리에 실패했습니다.', '⚠ Command failed.');
   } finally {
     btn.disabled = false; input.disabled = false;
   }
@@ -1258,26 +1432,28 @@ function chatMsg(text, cls) {
 }
 
 async function sendChat() {
+  const revision = languageRevision;
   const input = document.getElementById('chat-in');
   const btn = document.getElementById('chat-go');
   const text = input.value.trim();
-  if (!text) return;
+  if (!text || btn.disabled) return;
   input.value = '';
   btn.disabled = true; input.disabled = true;
   chatMsg(text, 'user');
-  const thinking = chatMsg('생각 중…', 'bot thinking');
+  const thinking = chatMsg(t('생각 중…', 'Thinking…'), 'bot thinking');
   try {
-    const r = await (await fetch('/api/chat', {
+    const r = await (await api('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, history: chatHistory }),
     })).json();
+    if (revision !== languageRevision) return;
     thinking.remove();
     chatMsg(r.reply, 'bot');
     chatHistory.push({ role: 'user', text }, { role: 'bot', text: r.reply });
     if (chatHistory.length > 12) chatHistory.splice(0, chatHistory.length - 12);
   } catch {
-    thinking.textContent = '⚠ 답변 생성에 실패했습니다.';
+    thinking.textContent = t('⚠ 답변 생성에 실패했습니다.', '⚠ Could not generate a reply.');
   } finally {
     btn.disabled = false; input.disabled = false; input.focus();
   }
@@ -1288,6 +1464,8 @@ document.getElementById('chat-in').addEventListener('keydown', (e) => {
 });
 
 // ---------- Bootstrap ----------
+localizeStatic();
+resetChat();
 await loadScene();
 await runInspection();
 

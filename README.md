@@ -61,6 +61,16 @@ python -m uvicorn backend.main:app --port 8001
 
 ## 테스트
 
+### 표시 언어
+
+화면의 언어 선택에서 한국어(기본값)와 English를 전환할 수 있습니다. 선택은 브라우저에 보관됩니다.
+API는 `?lang=ko` 또는 `?lang=en`으로 위반 설명·해결안·AI 응답의 언어를 선택합니다.
+언어는 표시만 바꾸며, ID·좌표·측정값·판정·점수는 동일합니다. 가구의 저장 이름은 한국어를 유지하고
+3D 라벨에서는 괄호 설명을 생략합니다. 사용자 입력 이름이나 이전 대화 기록은 자동 번역하지 않습니다.
+AI 응답은 HTML로 실행하지 않고 텍스트로 표시합니다.
+
+### 회귀 테스트 실행
+
 프로젝트 루트에서 실행합니다. WSL에서는 기존 가상환경을 먼저 활성화합니다.
 
 ```bash
@@ -70,6 +80,8 @@ python -m pytest -q
 ```
 
 WSL 공유 드라이브에서 pytest 캐시 권한 경고가 발생하면 `python -m pytest -q -p no:cacheprovider`로 실행합니다.
+실제 HTTP 검증만 실행하려면 `python -m pytest -q -s -p no:cacheprovider tests/test_live_api.py`를 사용합니다.
+이 테스트는 충돌하지 않는 로컬 포트에 Uvicorn을 시작하여 API를 확인하고 종료합니다.
 
 개발 의존성은 `pytest`와 FastAPI `TestClient`에 필요한 `httpx`입니다.
 테스트는 LLM을 호출하지 않으며 API 작업 상태와 데이터 경로를 격리하여 원본 데모를 변경하지 않습니다.

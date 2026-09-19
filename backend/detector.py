@@ -9,6 +9,7 @@ from typing import Any
 
 from backend import geometry as g
 from backend.models import Scene
+from backend.i18n import display_name, tr, violation_detail
 
 MM = 1000.0  # meters -> millimeters
 
@@ -18,7 +19,7 @@ def _box(b) -> tuple[g.Vec3, g.Vec3]:
 
 
 def _subject(obj, kind: str) -> dict[str, Any]:
-    return {"id": obj.id, "name": obj.name, "kind": kind}
+    return {"id": obj.id, "name": display_name(obj), "kind": kind}
 
 
 class Inspector:
@@ -39,7 +40,7 @@ class Inspector:
             "measured_mm": round(measured_mm, 1),
             "required_mm": round(required_mm, 1),
             "location": [round(c, 3) for c in location],
-            "detail": detail,
+            "detail": violation_detail(code, a, b, measured_mm, required_mm),
         })
 
     def _pipe_vs_box(self, pipe, obj, kind: str, required_mm: float) -> None:
@@ -188,7 +189,7 @@ class Inspector:
                 self._report(
                     "OUT_OF_BOUNDS", "HIGH",
                     _subject(pipe, "pipe"),
-                    {"id": "room", "name": "Room boundary", "kind": "structure"},
+                    {"id": "room", "name": tr("건물 외곽", "Building boundary"), "kind": "structure"},
                     -worst[0] * MM, 0.0, worst[1],
                     f"{pipe.id} exits the room boundary by {worst[0] * MM:.0f} mm")
         for eq in self.scene.equipment + self.scene.structures:
@@ -201,7 +202,7 @@ class Inspector:
                 self._report(
                     "OUT_OF_BOUNDS", "HIGH",
                     _subject(eq, "equipment"),
-                    {"id": "room", "name": "Room boundary", "kind": "structure"},
+                    {"id": "room", "name": tr("건물 외곽", "Building boundary"), "kind": "structure"},
                     -over * MM, 0.0, g.midpoint(emin, emax),
                     f"{eq.id} exits the room boundary by {over * MM:.0f} mm")
 
@@ -225,7 +226,7 @@ class Inspector:
                 self._report(
                     "OUT_OF_ROOM", "HIGH",
                     _subject(eq, "equipment"),
-                    {"id": room.id, "name": room.name, "kind": "room"},
+                    {"id": room.id, "name": display_name(room), "kind": "room"},
                     -over * MM, 0.0, g.midpoint(emin, emax),
                     f"{eq.id}이(가) {room.name} 영역을 {over * MM:.0f} mm 벗어남")
 
