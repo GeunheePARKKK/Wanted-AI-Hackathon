@@ -1084,7 +1084,7 @@ async function runInspection() {
         <span class="code">${codeName(v.code)}</span>
       </div>
       <div class="subjects">${esc(v.a.name)} ↔ ${esc(v.b.name)}</div>
-      <div class="nums">${t('실측', 'Measured')} <b>${esc(v.measured_mm)} mm</b> · ${t('요구', 'Required')} ${esc(v.required_mm)} mm</div>`;
+      <div class="nums">${t('실측', 'Measured')} <b>${esc(v.measured_mm)} mm</b> · ${t('요구', 'Required')} ${esc(v.required_mm)} mm<br>${t('부족량', 'Shortfall')} ${esc(v.shortfall_mm)} mm · ${t('감점', 'Penalty')} <b>−${esc(v.penalty)}</b></div>`;
     card.title = v.detail || '';
     card.onclick = (e) => {
       if (e.target.tagName === 'BUTTON') return; // candidate buttons handle themselves
@@ -1335,8 +1335,8 @@ async function showReport() {
     undo: t('실행취소', 'Undo'), redo: t('재실행', 'Redo'), save: t('저장', 'Save'),
   };
   const vRows = r.violations.length
-    ? r.violations.map(v => `<tr><td>${esc(v.id)}</td><td>${severityName(v.severity)}</td><td>${codeName(v.code)}</td><td>${esc(v.detail)}</td><td style="text-align:right">${esc(v.measured_mm)} / ${esc(v.required_mm)} mm</td></tr>`).join('')
-    : `<tr><td colspan="5" style="text-align:center;color:#2b8a3e"><b>${t('잔여 위반 없음 — 배치 승인 가능', 'No remaining violations — layout ready for approval')}</b></td></tr>`;
+    ? r.violations.map(v => `<tr><td>${esc(v.id)}</td><td>${severityName(v.severity)}</td><td>${codeName(v.code)}</td><td>${esc(v.detail)}</td><td style="text-align:right">${esc(v.measured_mm)} / ${esc(v.required_mm)} mm</td><td>−${esc(v.penalty)}</td></tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:#2b8a3e"><b>${t('잔여 위반 없음 — 배치 승인 가능', 'No remaining violations — layout ready for approval')}</b></td></tr>`;
   const hRows = r.history.length
     ? r.history.map(h => `<tr><td>${esc(h.time)}</td><td>${esc(kinds[h.kind] || h.kind)}</td><td>${esc(h.text)}</td></tr>`).join('')
     : `<tr><td colspan="3" style="color:#868e96">${t('이번 세션의 수정 이력이 없습니다', 'No edits in this session')}</td></tr>`;
@@ -1361,12 +1361,12 @@ async function showReport() {
  <div class="card"><div class="score" style="color:${s.violations ? '#c92a2a' : '#2b8a3e'}">${esc(s.violations)}</div><span>${t('잔여 위반', 'Remaining violations')}</span></div>
 </div>
 <h2>${t('잔여 위반 사항', 'Remaining violations')}</h2>
-<table><tr><th>ID</th><th>${t('심각도', 'Severity')}</th><th>${t('유형', 'Type')}</th><th>${t('내용', 'Details')}</th><th>${t('실측/요구', 'Measured / required')}</th></tr>${vRows}</table>
+<table><tr><th>ID</th><th>${t('심각도', 'Severity')}</th><th>${t('유형', 'Type')}</th><th>${t('내용', 'Details')}</th><th>${t('실측/요구', 'Measured / required')}</th><th>${t('감점', 'Penalty')}</th></tr>${vRows}</table>
 <h2>${t('세션 수정 이력', 'Session edit history')}</h2>
 <p class="meta">${t('이력 내용은 작업 당시의 언어로 표시됩니다.', 'History entries are shown in the language originally recorded.')}</p>
 <table><tr><th style="width:80px">${t('시각', 'Time')}</th><th style="width:110px">${t('구분', 'Category')}</th><th>${t('내용', 'Details')}</th></tr>${hRows}</table>
-<p class="foot">${t('본 리포트의 모든 수치와 판정은 결정론적 기하 검증 엔진의 출력입니다 (AI는 설명에만 관여). 점수 = 100 − (높음 위반 × 15) − (중간 위반 × 7)',
-  'All measurements and decisions come from the deterministic geometry engine (AI only provides explanations). Score = 100 − (high violations × 15) − (medium violations × 7)')}</p>
+<p class="foot">${t('모든 수치와 판정은 결정론적 엔진의 출력입니다. 부족량 = max(요구 − 실측, 0) mm. 높음 감점 = 10 + min(10, 부족량/50), 중간 감점 = 4 + min(6, 부족량/50). 감점은 소수 첫째 자리로 반올림하며 점수 = max(0, 100 − 감점 합계).',
+  'All numbers and decisions come from the deterministic engine. Shortfall = max(required − measured, 0) mm. High penalty = 10 + min(10, shortfall/50); medium = 4 + min(6, shortfall/50). Penalties are rounded to one decimal. Score = max(0, 100 − total penalties).')}</p>
 <button class="noprint" onclick="print()" style="margin-top:12px;padding:8px 20px">${t('🖨 인쇄 / PDF 저장', '🖨 Print / Save PDF')}</button>
 </body></html>`;
   document.getElementById('report-overlay')?.remove();

@@ -14,6 +14,11 @@ from backend.i18n import display_name, tr, violation_detail
 MM = 1000.0  # meters -> millimeters
 
 
+def violation_penalty(severity: str, shortfall_mm: float) -> float:
+    base, cap = {"HIGH": (10, 10), "MEDIUM": (4, 6)}[severity]
+    return round(base + min(cap, max(shortfall_mm, 0) / 50), 1)
+
+
 def _box(b) -> tuple[g.Vec3, g.Vec3]:
     return tuple(b.min), tuple(b.max)  # type: ignore[return-value]
 
@@ -31,6 +36,7 @@ class Inspector:
     # ---------------- helpers ----------------
     def _report(self, code: str, severity: str, a, b, measured_mm: float,
                 required_mm: float, location: g.Vec3, detail: str) -> None:
+        shortfall = max(required_mm - measured_mm, 0.0)
         self.violations.append({
             "id": f"DE-{len(self.violations) + 101}",
             "code": code,
@@ -39,6 +45,8 @@ class Inspector:
             "b": b,
             "measured_mm": round(measured_mm, 1),
             "required_mm": round(required_mm, 1),
+            "shortfall_mm": round(shortfall, 1),
+            "penalty": violation_penalty(severity, shortfall),
             "location": [round(c, 3) for c in location],
             "detail": violation_detail(code, a, b, measured_mm, required_mm),
         })
@@ -242,7 +250,7 @@ class Inspector:
         by_sev = {"HIGH": 0, "MEDIUM": 0}
         for v in self.violations:
             by_sev[v["severity"]] += 1
-        score = max(0, 100 - 15 * by_sev["HIGH"] - 7 * by_sev["MEDIUM"])
+        score = round(max(0, 100 - sum(v["penalty"] for v in self.violations)), 1)
         return {
             "summary": {
                 "checks_run": self.checks_run,

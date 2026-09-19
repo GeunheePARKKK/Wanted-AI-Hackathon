@@ -29,7 +29,7 @@ def assert_demo_baseline(inspection):
     } == EXPECTED_VIOLATIONS
     assert inspection["summary"]["violations"] == 6
     assert inspection["summary"]["by_severity"] == {"HIGH": 3, "MEDIUM": 3}
-    assert inspection["summary"]["score"] == 34
+    assert inspection["summary"]["score"] == 26
 
 
 def assert_clean(inspection):
