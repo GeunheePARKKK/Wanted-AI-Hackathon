@@ -10,6 +10,7 @@ from typing import Any
 from backend import geometry as g
 from backend.models import Scene
 from backend.i18n import display_name, tr, violation_detail
+from backend.usage import usage_spaces
 
 MM = 1000.0  # meters -> millimeters
 
@@ -32,6 +33,7 @@ class Inspector:
         self.scene = scene
         self.violations: list[dict[str, Any]] = []
         self.checks_run = 0
+        self.usage = usage_spaces(scene)
 
     # ---------------- helpers ----------------
     def _report(self, code: str, severity: str, a, b, measured_mm: float,
@@ -162,24 +164,16 @@ class Inspector:
                             f"{a.id} overlaps {b.id} (penetration {depth * MM:.0f} mm)")
 
     def check_maintenance_space(self) -> None:
-        for eq in self.scene.equipment:
-            req = eq.maintenance_clearance_mm
-            if req is None:
+        for space in self.usage:
+            self.checks_run += 1
+            if space["passed"]:
                 continue
-            emin, emax = _box(eq.box)
-            # furniture blocks access; walls don't count (desks normally sit against walls)
-            others = [(o, "equipment") for o in self.scene.equipment if o.id != eq.id]
-            for other, kind in others:
-                self.checks_run += 1
-                omin, omax = _box(other.box)
-                dist_mm = g.box_box_distance(emin, emax, omin, omax) * MM
-                if dist_mm < req:
-                    near = g.clamp_to_box(g.midpoint(emin, emax), omin, omax)
-                    self._report(
-                        "MAINTENANCE_SPACE", "MEDIUM",
-                        _subject(eq, "equipment"), _subject(other, kind),
-                        dist_mm, req, near,
-                        f"{other.id} is {dist_mm:.0f} mm from {eq.id}; maintenance access requires {req:.0f} mm")
+            eq = next(e for e in self.scene.equipment if e.id == space["id"])
+            best = max(space["alternatives"], key=lambda s: s["measured_mm"])
+            box = best["box"]
+            self._report("USAGE_SPACE", "MEDIUM", _subject(eq, "equipment"),
+                         best["blocker"], best["measured_mm"], space["required_mm"],
+                         g.midpoint(tuple(box["min"]), tuple(box["max"])), "")
 
     def check_bounds(self) -> None:
         """Objects must stay inside the room (rejects fixes that push things through the hull)."""
@@ -260,6 +254,7 @@ class Inspector:
                 "score": score,
             },
             "violations": self.violations,
+            "usage_spaces": self.usage,
         }
 
 

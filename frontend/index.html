@@ -382,6 +382,7 @@ const shortName = obj => displayName(obj).replace(/\s*\([^)]*\)\s*$/, '').trim()
 const codeName = code => ({
   HARD_CLASH: t('가구 충돌', 'Collision'), ZONE_INTRUSION: t('금지 구역 침범', 'Zone intrusion'),
   MAINTENANCE_SPACE: t('사용 공간 부족', 'Insufficient usage space'),
+  USAGE_SPACE: t('사용 공간 부족', 'Insufficient usage space'),
   OUT_OF_ROOM: t('방 경계 이탈', 'Outside room'), OUT_OF_BOUNDS: t('건물 경계 이탈', 'Outside building'),
   CLEARANCE_VIOLATION: t('이격 거리 부족', 'Insufficient clearance'),
 }[code] || t('배치 위반', 'Layout violation'));
@@ -1050,6 +1051,7 @@ async function runInspection() {
   const res = await (await api('/api/inspect')).json();
   if (revision !== languageRevision) return;
   const { summary, violations } = res;
+  drawUsageSpaces(res.usage_spaces || []);
 
   const sc = summary.score;
   const scColor = sc >= 100 ? '#3fb950' : sc >= 70 ? '#d29922' : '#f85149';
@@ -1100,6 +1102,23 @@ async function runInspection() {
 }
 
 document.getElementById('inspect-btn').onclick = runInspection;
+
+const usageOverlays = [];
+function drawUsageSpaces(spaces) {
+  for (const mesh of usageOverlays) {
+    root.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose();
+  }
+  usageOverlays.length = 0;
+  for (const space of spaces) for (const side of space.alternatives) {
+    const {min, max} = side.box;
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(max[0] - min[0], max[1] - min[1], max[2] - min[2]),
+      new THREE.MeshBasicMaterial({color: side.passed ? 0x22a06b : 0xe5484d,
+        transparent: true, opacity: 0.22, depthWrite: false}));
+    mesh.position.set((min[0]+max[0])/2, (min[1]+max[1])/2, (min[2]+max[2])/2);
+    root.add(mesh); usageOverlays.push(mesh);
+  }
+}
 
 // ---------- Resolution candidates (Phase 4) ----------
 const ghosts = [];

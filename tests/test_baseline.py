@@ -11,7 +11,7 @@ EXPECTED_VIOLATIONS = {
     ("HARD_CLASH", "tv_stand", "wall_b"): ("HIGH", -150.0, 0.0),
     ("ZONE_INTRUSION", "bed", "bedroom_window"): ("MEDIUM", -400.0, 0.0),
     ("ZONE_INTRUSION", "wardrobe", "bedroom_door_swing"): ("MEDIUM", -300.0, 0.0),
-    ("MAINTENANCE_SPACE", "desk", "bookshelf"): ("MEDIUM", 400.0, 750.0),
+    ("USAGE_SPACE", "desk", "bookshelf"): ("MEDIUM", 400.0, 750.0),
     ("OUT_OF_ROOM", "tv_stand", "living"): ("HIGH", -300.0, 0.0),
 }
 

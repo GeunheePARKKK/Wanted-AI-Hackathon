@@ -1,7 +1,8 @@
 """Data models for the AI Ship Design Debugger scene."""
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+import math
+from pydantic import BaseModel, Field, field_validator
 
 
 Vec3 = list[float]  # [x, y, z] in meters, Z-up
@@ -47,6 +48,20 @@ class Equipment(BaseModel):
     box: Box
     rotation: int = 0  # yaw in degrees (0/90/180/270); box is always the world AABB
     maintenance_clearance_mm: float | None = None
+
+    @field_validator("rotation")
+    @classmethod
+    def validate_rotation(cls, value: int) -> int:
+        if value % 90:
+            raise ValueError("rotation must be a multiple of 90 degrees")
+        return value % 360
+
+    @field_validator("maintenance_clearance_mm")
+    @classmethod
+    def validate_clearance(cls, value: float | None) -> float | None:
+        if value is not None and (value < 0 or not math.isfinite(value)):
+            raise ValueError("maintenance_clearance_mm must be finite and non-negative")
+        return value
 
 
 class Pipe(BaseModel):

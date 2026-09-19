@@ -102,7 +102,7 @@ MEDIUM `4 + min(6, 부족량/50)`입니다. 50mm마다 1점을 추가하되 개�
 | HARD_CLASH | tv_stand | wall_b |
 | ZONE_INTRUSION | bed | bedroom_window |
 | ZONE_INTRUSION | wardrobe | bedroom_door_swing |
-| MAINTENANCE_SPACE | desk | bookshelf |
+| USAGE_SPACE | desk | bookshelf |
 | OUT_OF_ROOM | tv_stand | living |
 
 [회귀 테스트](tests/test_baseline.py)는 코드·대상 쌍·측정값, 각 위반의 1순위 해결안 적용 후 대상 위반 해소와 새 위반 없음,
@@ -118,7 +118,16 @@ MEDIUM `4 + min(6, 부족량/50)`입니다. 50mm마다 1점을 추가하되 개�
 | 창문 앞 확보 | 침범 금지 (~500mm) | 채광/환기/결로/피난 |
 | 책상 사용 공간 | 750mm | 의자 빼고 앉는 동작 |
 | 옷장 개폐 공간 | 600mm | 여닫이 문짝 폭 |
+| 냉장고·세탁기 앞 공간 | 600mm | 문 개폐와 물품 접근 |
+| 침대 긴 측면 | 두 측면 중 하나 300mm 이상 | 승하차·침구 정리 |
 | 가구 겹침/벽 관통 | 금지 | 물리적 배치 가능성 |
+
+사용 공간은 앞면의 폭 구간에 걸치는 가구·벽·건물 외곽까지 측정하며, 구역과 바닥은 장애물에서 제외합니다.
+회전은 Z축 반시계 방향으로 `0°=-Y`, `90°=+X`, `180°=+Y`, `270°=-X`입니다.
+기본 데모 책상은 남쪽 벽에서 방 안을 바라보도록 180°로 수정했습니다. 다른 가구는 기존 0° 방향을 유지합니다.
+책상–책장 400mm 위반을 포함한 6건은 유지하며, 기존 `MAINTENANCE_SPACE` 코드는 `USAGE_SPACE`로 변경했습니다.
+`maintenance_clearance_mm`은 타입 기본값을 덮어씁니다(0은 검사 비활성화).
+바닥의 반투명 초록/빨강 사각형은 각 접근 면의 통과/부족 상태를 나타냅니다.
 
 ## 프로젝트 구조
 

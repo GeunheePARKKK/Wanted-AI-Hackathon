@@ -278,7 +278,7 @@ class Resolver:
                 self._add(action, mag, desc, n_after, introduced=introduced)
         # maintenance space: prefer moving the intruder (b), not the equipment
         # that owns the clearance requirement (a)
-        if self.v["code"] == "MAINTENANCE_SPACE":
+        if self.v["code"] == "USAGE_SPACE":
             for c in self.candidates:
                 if c["action"].get("target_id") == a["id"]:
                     c["score"] += 100

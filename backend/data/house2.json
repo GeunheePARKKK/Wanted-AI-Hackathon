@@ -58,6 +58,7 @@
     },
     {
       "id": "desk", "name": "책상 (서재)", "type": "desk",
+      "rotation": 180,
       "box": { "min": [5.4, 0.1, 0], "max": [6.6, 0.7, 0.75] },
       "maintenance_clearance_mm": 750
     },
