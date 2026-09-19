@@ -24,7 +24,7 @@ from backend.detector import inspect_scene
 from backend.llm import explain_violation
 from backend.models import Scene
 from backend.resolver import apply_action, resolve_violation
-from backend.i18n import LANGUAGE, display_name, tr
+from backend.i18n import LANGUAGE, code_name, display_name, tr
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
@@ -205,7 +205,7 @@ def autofix() -> dict:
         if k in fixed_once:
             # a fix for this pair got undone by a later fix -> oscillation; stop retrying
             skipped.add(k)
-            steps.append({"violation": f"{v['a']['name']} ↔ {v['b']['name']} ({v['code']})",
+            steps.append({"violation": f"{v['a']['name']} ↔ {v['b']['name']} ({code_name(v['code'])})",
                           "action": None, "verified": False})
             continue
         cands = resolve_violation(scene, v["id"]).get("candidates") or []
@@ -213,12 +213,12 @@ def autofix() -> dict:
         pick = min(clean, key=lambda c: (c["violations_after"], c["score"])) if clean else None
         if pick is None:
             skipped.add(k)
-            steps.append({"violation": f"{v['a']['name']} ↔ {v['b']['name']} ({v['code']})",
+            steps.append({"violation": f"{v['a']['name']} ↔ {v['b']['name']} ({code_name(v['code'])})",
                           "action": None, "verified": False})
             continue
         scene = apply_action(scene, pick["action"])
         fixed_once.add(k)
-        steps.append({"violation": f"{v['a']['name']} ↔ {v['b']['name']} ({v['code']})",
+        steps.append({"violation": f"{v['a']['name']} ↔ {v['b']['name']} ({code_name(v['code'])})",
                       "action": pick["description"], "verified": pick["verified"]})
 
     if any(s["action"] for s in steps):

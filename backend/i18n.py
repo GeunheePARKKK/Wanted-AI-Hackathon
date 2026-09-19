@@ -29,6 +29,19 @@ def tr(ko: str, en: str) -> str:
     return en if LANGUAGE.get() == "en" else ko
 
 
+def code_name(code: str) -> str:
+    names = {
+        "HARD_CLASH": ("가구 충돌", "Collision"),
+        "ZONE_INTRUSION": ("금지 구역 침범", "Zone intrusion"),
+        "USAGE_SPACE": ("사용 공간 부족", "Insufficient usage space"),
+        "CIRCULATION": ("동선 차단", "Blocked circulation"),
+        "OUT_OF_ROOM": ("방 경계 이탈", "Outside room"),
+        "OUT_OF_BOUNDS": ("건물 경계 이탈", "Outside building"),
+        "CLEARANCE_VIOLATION": ("이격 거리 부족", "Insufficient clearance"),
+    }
+    return tr(*names[code])
+
+
 def short_name(name: str) -> str:
     return re.sub(r"\s*\([^)]*\)", "", name).strip()
 

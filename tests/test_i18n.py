@@ -68,3 +68,11 @@ def test_usage_knowledge_matches_subject_type_not_generic_code(kind, rule):
                  "a": {"id": "custom-id", "type": kind, "kind": "furniture"},
                  "b": {"id": "room", "kind": "structure"}}
     assert [r["id"] for r in llm.retrieve_knowledge(violation)["rules"]] == [rule]
+
+
+@pytest.mark.parametrize("lang,label", [("ko", "가구 충돌"), ("en", "Collision")])
+def test_autofix_steps_use_readable_violation_labels(client, lang, label):
+    result = client.post(f"/api/autofix?lang={lang}").json()
+    assert result["inspection"]["summary"]["score"] == 100
+    assert label in result["steps"][0]["violation"]
+    assert all("HARD_CLASH" not in step["violation"] for step in result["steps"])
