@@ -59,6 +59,36 @@ python -m uvicorn backend.main:app --port 8001
 
 **⚡ AI 속도:** `.env.example`을 `.env`로 복사하고 무료 [Gemini API 키](https://aistudio.google.com/apikey)를 넣으면 AI 응답이 1~4초. 키가 없으면 Claude Code CLI로 폴백(느림), 그것도 없으면 템플릿 폴백.
 
+## 테스트
+
+프로젝트 루트에서 실행합니다. WSL에서는 기존 가상환경을 먼저 활성화합니다.
+
+```bash
+source ~/.venvs/wanted-ai-hackathon/bin/activate  # WSL에서 실행할 때
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+WSL 공유 드라이브에서 pytest 캐시 권한 경고가 발생하면 `python -m pytest -q -p no:cacheprovider`로 실행합니다.
+
+개발 의존성은 `pytest`와 FastAPI `TestClient`에 필요한 `httpx`입니다.
+테스트는 LLM을 호출하지 않으며 API 작업 상태와 데이터 경로를 격리하여 원본 데모를 변경하지 않습니다.
+
+현재 [기본 데모](backend/data/house2.json)의 기준선은 **6건 (HIGH 3건, MEDIUM 3건), 34점**입니다.
+
+| 코드 | 대상 a | 대상 b |
+|---|---|---|
+| HARD_CLASH | sofa | table |
+| HARD_CLASH | tv_stand | wall_b |
+| ZONE_INTRUSION | bed | bedroom_window |
+| ZONE_INTRUSION | wardrobe | bedroom_door_swing |
+| MAINTENANCE_SPACE | desk | bookshelf |
+| OUT_OF_ROOM | tv_stand | living |
+
+[회귀 테스트](tests/test_baseline.py)는 코드·대상 쌍·측정값, 각 위반의 1순위 해결안 적용 후 대상 위반 해소와 새 위반 없음,
+`/api/autofix` 후 **0건·100점**, 반복 실행과 Undo/Redo를 검증합니다.
+규칙이나 의도된 위반이 바뀌면 기준선과 테스트를 함께 갱신합니다.
+
 ## 검사 규칙 (기본값)
 
 | 규칙 | 기준 | 근거 |
