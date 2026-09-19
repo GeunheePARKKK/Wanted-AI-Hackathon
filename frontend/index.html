@@ -2,235 +2,265 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>AI Home Layout Debugger</title>
 <style>
+  :root {
+    color-scheme: light;
+    --bg: #f5f7fa; --surface: #fff; --soft: #f8f9fc;
+    --text: #20242c; --muted: #626b7a; --line: #e5e8ee;
+    --blue: #245ff4; --blue-hover: #174bd1; --blue-soft: #edf3ff;
+    --green: #15734e; --green-soft: #ecf8f1;
+    --red: #c6363f; --red-soft: #fff2f2; --amber: #946000;
+    --shadow: 0 8px 32px rgba(27, 42, 72, .08);
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; overflow: hidden; }
-  #app { display: grid; grid-template-columns: 260px 1fr 360px; grid-template-rows: 52px 1fr; height: 100vh; }
-  header {
-    grid-column: 1 / 4; display: flex; align-items: center; gap: 12px;
-    padding: 0 16px; background: #161b22; border-bottom: 1px solid #30363d;
+  body {
+    font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; font-size: 13px; line-height: 1.5;
+    background: var(--bg); color: var(--text); overflow: hidden; -webkit-font-smoothing: antialiased;
   }
-  header h1 { font-size: 16px; font-weight: 600; }
-  header .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #1f6feb33; color: #58a6ff; border: 1px solid #1f6feb66; }
-  #sidebar { background: #161b22; border-right: 1px solid #30363d; overflow-y: auto; padding: 12px; min-height: 0; }
-  #sidebar h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin: 14px 0 6px; }
+  button, input, select { font: inherit; }
+  button, select { cursor: pointer; }
+  button {
+    min-height: 38px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px;
+    background: var(--surface); color: var(--text); font-weight: 600; line-height: 1.4;
+    transition: background .15s, border-color .15s, box-shadow .15s;
+  }
+  button:hover:not(:disabled) { background: var(--soft); border-color: #bdc7d7; }
+  button:active:not(:disabled) { background: #e9edf4; }
+  input:disabled, select:disabled {
+    background: #f0f2f6; border-color: var(--line); color: #89909d; cursor: not-allowed; box-shadow: none;
+  }
+  :focus-visible { outline: 3px solid #245ff480; outline-offset: 3px; }
+  input, select {
+    min-width: 0; min-height: 38px; padding: 8px 10px; border: 1px solid #dce1e9;
+    border-radius: 8px; background: var(--surface); color: var(--text);
+  }
+  input::placeholder { color: #737c8b; }
+  input:hover:not(:disabled), select:hover:not(:disabled) { border-color: #aab8ce; }
+  input:focus, select:focus { border-color: var(--blue); }
+  #sidebar, #errorpanel, #chat-msgs { scrollbar-width: thin; scrollbar-color: #cbd3df transparent; }
+  #app {
+    display: grid; grid-template-columns: 264px minmax(0, 1fr) 360px;
+    grid-template-rows: auto minmax(0, 1fr); height: 100vh; height: 100dvh;
+  }
+  header { grid-column: 1 / -1; background: var(--surface); border-bottom: 1px solid var(--line); z-index: 2; }
+  .header-main { display: flex; align-items: center; gap: 20px; padding: 16px 24px; }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .brand-mark {
+    display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 40px;
+    border-radius: 12px; background: var(--blue); color: white;
+  }
+  .brand-mark svg { width: 24px; height: 24px; }
+  header h1 { font-size: 17px; font-weight: 750; letter-spacing: -.5px; line-height: 1.4; }
+  .brand-caption { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .history-actions { display: flex; gap: 4px; padding-right: 8px; border-right: 1px solid var(--line); }
+  #undo-btn, #redo-btn { width: 36px; min-height: 36px; padding: 4px; font-size: 21px; }
+  #language { font-size: 12px; }
+  .project-bar {
+    display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 24px;
+    border-top: 1px solid #f0f2f6; font-size: 12px;
+  }
+  .project-label { color: var(--muted); flex-shrink: 0; }
+  #scene-name { font-weight: 600; overflow-wrap: anywhere; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px;
+    border-radius: 6px; background: var(--blue-soft); color: #2354c7; font-size: 11px; font-weight: 600;
+  }
+  .project-bar .badge { margin-left: auto; flex-shrink: 0; }
+  #sidebar, #errorpanel { min-width: 0; min-height: 0; overflow-y: auto; padding: 20px 16px; background: var(--surface); }
+  #sidebar { border-right: 1px solid var(--line); }
+  #errorpanel { border-left: 1px solid var(--line); }
+  .panel-intro { margin-bottom: 20px; }
+  .panel-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 750; letter-spacing: -.3px; }
+  .panel-intro p, .section-note { margin-top: 5px; color: var(--muted); font-size: 12px; }
+  .section-block { padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+  #sidebar h2, #errorpanel h2 { font-size: 12px; font-weight: 700; margin-bottom: 10px; color: #454e5d; }
+  #sidebar > h2 { margin-top: 20px; }
+  #toolbar, #props { display: flex; flex-direction: column; gap: 8px; }
+  #toolbar select { width: 100%; }
+  #toolbar .tool-row { display: flex; gap: 6px; }
+  #toolbar button { width: 100%; }
+  #del-obj { color: var(--muted); background: var(--soft); border-color: transparent; }
+  #del-obj:hover { color: var(--red); background: var(--red-soft); border-color: #f1cbd0; }
+  #props-empty { color: var(--muted); font-size: 12px; padding: 14px; border: 1px dashed #d8dee9; border-radius: 10px; background: var(--soft); }
+  .prop-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+  .prop-row > span { min-width: 74px; }
+  .prop-row input { flex: 1; width: 0; font-size: 12px; }
+  #prop-size-rows .prop-row + .prop-row { margin-top: 8px; }
   .item {
-    display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px;
-    cursor: pointer; font-size: 13px; user-select: none;
+    display: flex; align-items: center; gap: 9px; width: 100%; padding: 10px 9px; margin: 2px 0;
+    border: 1px solid transparent; border-radius: 9px; cursor: pointer; font-size: 12px; user-select: none;
   }
-  .item:hover { background: #21262d; }
-  .item.selected { background: #1f6feb33; outline: 1px solid #1f6feb66; }
-  .dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
-  .item .sub { color: #8b949e; font-size: 11px; margin-left: auto; }
-  #viewport { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
-  #canvas3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .item:hover { background: var(--soft); }
+  .item.selected { background: var(--blue-soft); border-color: #c5d6ff; color: #194dbd; }
+  .item > span:not(.dot):not(.sub) { min-width: 0; overflow-wrap: anywhere; }
+  .dot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; box-shadow: inset 0 0 0 1px #00000012; }
+  .item .sub { color: var(--muted); font-size: 10px; margin-left: auto; flex-shrink: 0; max-width: 36%; text-align: right; }
+  #viewport { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #f3f5f9; }
+  #canvas3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .viewport-top { position: absolute; top: 20px; left: 22px; right: 22px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; pointer-events: none; }
+  .viewport-title { font-size: 15px; font-weight: 700; letter-spacing: -.3px; }
+  .viewport-caption { color: var(--muted); font-size: 11px; margin-top: 3px; }
+  .view-chip { padding: 6px 10px; border: 1px solid #e0e5ef; border-radius: 8px; background: #ffffffde; font-size: 11px; color: #4d596d; }
+  .viewport-legend {
+    position: absolute; left: 22px; bottom: 72px; display: flex; flex-wrap: wrap; gap: 12px;
+    padding: 8px 12px; border: 1px solid #e0e5ef; border-radius: 8px; background: #ffffffeb;
+    color: #596577; font-size: 10px; pointer-events: none; max-width: calc(100% - 110px);
+  }
+  .viewport-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
+  .legend-dot.clear { background: var(--green); }
+  .legend-dot.route { background: var(--blue); }
   #tooltip {
-    position: absolute; pointer-events: none; background: #161b22ee; border: 1px solid #30363d;
-    padding: 6px 10px; border-radius: 6px; font-size: 12px; display: none; z-index: 10;
+    position: absolute; pointer-events: none; background: #ffffffed; color: var(--text); border: 1px solid #dce2ec;
+    box-shadow: var(--shadow); padding: 7px 11px; border-radius: 8px; font-size: 12px; display: none; z-index: 10;
   }
-  #hint { position: absolute; bottom: 10px; left: 12px; font-size: 11px; color: #8b949e; }
-  /* ---- error panel ---- */
-  #errorpanel { background: #161b22; border-left: 1px solid #30363d; overflow-y: auto; padding: 12px; min-height: 0; }
-  #errorpanel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 8px; }
-  #inspect-btn {
-    width: 100%; padding: 9px; margin-bottom: 10px; border: 1px solid #1f6feb; border-radius: 6px;
-    background: #1f6feb22; color: #58a6ff; font-size: 13px; font-weight: 600; cursor: pointer;
+  #hint {
+    position: absolute; bottom: 22px; left: 22px; max-width: calc(100% - 110px);
+    font-size: 11px; color: #626e80; pointer-events: none; line-height: 1.6;
   }
-  #inspect-btn:hover { background: #1f6feb44; }
-  #summary { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
-  .stat { flex: 1; min-width: 70px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px; text-align: center; }
-  .stat b { display: block; font-size: 18px; }
-  .stat span { font-size: 10px; color: #8b949e; }
-  .stat.bad b { color: #f85149; }
-  .stat.ok b { color: #3fb950; }
+  #save-btn, #inspect-btn, #cmd-send, #chat-go, .cand button.apply {
+    background: var(--blue); border-color: var(--blue); color: #fff;
+  }
+  #save-btn:hover:not(:disabled), #inspect-btn:hover:not(:disabled), #cmd-send:hover:not(:disabled),
+  #chat-go:hover:not(:disabled), .cand button.apply:hover:not(:disabled) { background: var(--blue-hover); border-color: var(--blue-hover); }
+  #add-obj, #prop-apply, #autofix-btn, .ai-btn { background: var(--blue-soft); border-color: #d7e3ff; color: #2455c5; }
+  #add-obj:hover:not(:disabled), #prop-apply:hover:not(:disabled), #autofix-btn:hover:not(:disabled),
+  .ai-btn:hover:not(:disabled) { background: #e0ebff; border-color: #adc6ff; }
+  #inspect-btn, #autofix-btn, #report-btn { width: 100%; margin-top: 8px; min-height: 42px; }
+  .copilot-panel { background: var(--soft); padding: 14px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 20px; }
+  .copilot-panel h2 { display: flex; align-items: center; gap: 8px; }
+  .ai-spark { display: inline-grid; place-items: center; width: 25px; height: 25px; border-radius: 7px; background: var(--blue-soft); color: var(--blue); font-size: 16px; }
+  #cmd-row, #chat-inrow { display: flex; gap: 8px; }
+  #cmd-row { margin-top: 12px; }
+  #cmd-input, #chat-in { flex: 1; width: 0; font-size: 12px; }
+  #cmd-send, #chat-go { flex-shrink: 0; width: 38px; padding: 8px; }
+  #cmd-reply { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+  #cmd-reply:not(:empty) { margin-top: 12px; }
+  #cmd-reply .msg { background: var(--blue-soft); border: 1px solid #d7e3ff; border-radius: 9px; padding: 10px 12px; }
+  #cmd-reply .step { color: var(--muted); font-size: 11px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+  #cmd-reply .step b { color: var(--green); }
+  #cmd-reply .step.fail b { color: var(--red); }
+  #summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 20px 0 16px; }
+  .stat { background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 12px 3px; text-align: center; }
+  .stat b { display: block; font-size: 23px; font-weight: 750; letter-spacing: -.8px; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 10px; color: var(--muted); }
+  .stat.bad b { color: var(--red); }
+  .stat.ok b { color: var(--green); }
   .err-card {
-    background: #0d1117; border: 1px solid #30363d; border-left: 3px solid #f85149;
-    border-radius: 6px; padding: 10px; margin-bottom: 8px; cursor: pointer; font-size: 12px;
+    background: var(--surface); border: 1px solid var(--line); border-left: 3px solid #df6770;
+    border-radius: 11px; padding: 13px 12px; margin-bottom: 10px; cursor: pointer; font-size: 12px; overflow-wrap: anywhere;
   }
-  .err-card:hover { background: #1c2128; }
-  .err-card.selected { outline: 1px solid #f85149; background: #f8514911; }
-  .err-card.MEDIUM { border-left-color: #d29922; }
-  .err-card .row1 { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-  .err-card .eid { font-weight: 700; }
-  .sev { font-size: 10px; padding: 1px 7px; border-radius: 10px; font-weight: 600; }
-  .sev.HIGH { background: #f8514922; color: #f85149; border: 1px solid #f8514955; }
-  .sev.MEDIUM { background: #d2992222; color: #d29922; border: 1px solid #d2992255; }
-  .err-card .code { margin-left: auto; font-size: 10px; color: #8b949e; }
-  .err-card .subjects { color: #e6edf3; margin-bottom: 4px; }
-  .err-card .nums { color: #8b949e; }
-  .err-card .nums b { color: #f85149; }
-  #no-errors { text-align: center; color: #3fb950; padding: 24px 0; font-size: 13px; display: none; }
-  /* ---- resolution candidates ---- */
-  .cand-wrap { margin-top: 8px; border-top: 1px dashed #30363d; padding-top: 8px; }
-  .cand-loading { color: #8b949e; font-size: 11px; padding: 4px 0; }
-  .cand {
-    background: #161b22; border: 1px solid #30363d; border-radius: 6px;
-    padding: 8px; margin-bottom: 6px;
-  }
-  .cand.rec { border-color: #3fb95066; }
-  .cand .c-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-  .cand .opt { font-weight: 700; color: #58a6ff; }
-  .cand .rec-badge { font-size: 10px; padding: 1px 7px; border-radius: 10px; background: #23863633; color: #3fb950; border: 1px solid #23863666; }
-  .cand .vbadge { font-size: 10px; color: #3fb950; margin-left: auto; }
-  .cand .c-desc { color: #e6edf3; margin-bottom: 3px; }
-  .cand .c-impact { color: #8b949e; font-size: 11px; margin-bottom: 6px; }
+  .err-card:hover { border-color: #e6a4aa; box-shadow: 0 3px 12px #24344c08; }
+  .err-card.selected { border-color: #dc8f97; background: #fffafb; box-shadow: 0 0 0 2px #c6363f0c; }
+  .err-card.MEDIUM { border-left-color: #ce992f; }
+  .err-card .row1 { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 9px; }
+  .err-card .eid { font-weight: 700; font-size: 11px; }
+  .sev { font-size: 10px; padding: 2px 7px; border-radius: 5px; font-weight: 600; }
+  .sev.HIGH { background: var(--red-soft); color: var(--red); }
+  .sev.MEDIUM { background: #fff6e3; color: var(--amber); }
+  .err-card .code { margin-left: auto; font-size: 10px; color: var(--muted); }
+  .err-card .subjects { font-weight: 600; margin-bottom: 6px; }
+  .err-card .nums { color: var(--muted); font-size: 11px; line-height: 1.8; font-variant-numeric: tabular-nums; }
+  .err-card .nums b { color: var(--red); font-weight: 600; }
+  #no-errors { display: none; text-align: center; color: var(--green); background: var(--green-soft); border: 1px solid #cbe8d8; border-radius: 12px; padding: 24px 14px; font-size: 13px; line-height: 1.8; }
+  .cand-wrap { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; cursor: default; }
+  .cand-loading { color: var(--muted); font-size: 11px; padding: 6px 0; }
+  .cand { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+  .cand.rec { border-color: #a7d5bf; }
+  .cand .c-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 7px; }
+  .cand .opt { font-weight: 700; color: #2455c5; }
+  .cand .rec-badge { font-size: 10px; padding: 2px 6px; border-radius: 5px; background: var(--green-soft); color: var(--green); }
+  .cand .vbadge { font-size: 10px; color: var(--green); }
+  .cand .c-desc { margin-bottom: 5px; }
+  .cand .c-impact { color: var(--muted); font-size: 11px; margin-bottom: 10px; }
   .cand .c-btns { display: flex; gap: 6px; }
-  .cand button {
-    flex: 1; padding: 4px; font-size: 11px; border-radius: 5px; cursor: pointer;
-    background: #21262d; border: 1px solid #30363d; color: #e6edf3;
-  }
-  .cand button:hover { background: #30363d; }
-  .cand button.apply { background: #238636; border-color: #2ea043; color: #fff; font-weight: 600; }
-  .cand button.apply:hover { background: #2ea043; }
-  #reset-btn {
-    padding: 5px 14px; font-size: 12px; border-radius: 6px; cursor: pointer;
-    background: #21262d; border: 1px solid #30363d; color: #e6edf3;
-  }
-  #reset-btn:hover { background: #30363d; }
-  /* ---- AI analysis ---- */
-  .ai-btn {
-    width: 100%; padding: 6px; margin-top: 2px; border-radius: 5px; cursor: pointer;
-    background: #6e40c922; border: 1px solid #6e40c966; color: #bc8cff; font-size: 12px; font-weight: 600;
-  }
-  .ai-btn:hover { background: #6e40c944; }
-  .ai-box {
-    margin-top: 8px; background: #161b22; border: 1px solid #6e40c955; border-radius: 6px;
-    padding: 10px; font-size: 12px; line-height: 1.55;
-  }
-  .ai-box h4 { color: #bc8cff; font-size: 11px; margin: 8px 0 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .cand button { flex: 1; padding: 7px; min-height: 34px; font-size: 11px; }
+  .ai-btn { width: 100%; font-size: 11px; }
+  .ai-box { margin-top: 10px; background: var(--blue-soft); border: 1px solid #d7e3ff; border-radius: 10px; padding: 12px; font-size: 12px; line-height: 1.65; }
+  .ai-box h4 { color: #2455c5; font-size: 11px; margin: 10px 0 4px; }
   .ai-box h4:first-child { margin-top: 0; }
   .ai-box ul { margin-left: 16px; }
-  .ai-box .kb { margin-top: 8px; color: #8b949e; font-size: 10px; }
-  .ai-loading { color: #bc8cff; font-size: 11px; padding: 6px 0; text-align: center; }
-  /* ---- edit toolbar ---- */
-  #toolbar { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
-  #toolbar select {
-    width: 100%; padding: 6px; background: #0d1117; color: #e6edf3;
-    border: 1px solid #30363d; border-radius: 6px; font-size: 12px;
-  }
-  #toolbar input {
-    width: 100%; padding: 5px; background: #0d1117; color: #e6edf3;
-    border: 1px solid #30363d; border-radius: 6px; font-size: 12px;
-  }
-  #toolbar .tool-row { display: flex; gap: 6px; }
-  /* ---- properties panel ---- */
-  #props { display: flex; flex-direction: column; gap: 5px; }
-  .prop-row {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 11px; color: #8b949e; white-space: nowrap;
-  }
-  .prop-row input {
-    flex: 1; min-width: 0; padding: 5px; background: #0d1117; color: #e6edf3;
-    border: 1px solid #30363d; border-radius: 6px; font-size: 12px;
-  }
-  #prop-apply {
-    padding: 6px; font-size: 12px; border-radius: 6px; cursor: pointer;
-    background: #1f6feb22; border: 1px solid #1f6feb66; color: #58a6ff; font-weight: 600;
-  }
-  #prop-apply:hover { background: #1f6feb44; }
-  /* ---- help chatbot ---- */
+  .ai-box .kb { margin-top: 10px; color: var(--muted); font-size: 10px; }
+  .ai-loading { color: #2455c5; font-size: 11px; padding: 8px 0; text-align: center; }
   #chat-fab {
-    position: absolute; right: 18px; bottom: 18px; width: 52px; height: 52px;
-    border-radius: 50%; border: 1px solid #6e40c9; background: #6e40c9;
-    color: #fff; font-size: 22px; cursor: pointer; z-index: 20;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    position: absolute; right: 20px; bottom: 20px; width: 48px; height: 48px; padding: 12px;
+    border-radius: 16px; border-color: var(--blue); background: var(--blue); color: #fff; z-index: 20;
+    box-shadow: 0 6px 18px #245ff433;
   }
-  #chat-fab:hover { background: #8957e5; }
+  #chat-fab:hover { background: var(--blue-hover); border-color: var(--blue-hover); }
+  #chat-fab svg { width: 23px; height: 23px; display: block; }
   #chatbox {
-    position: absolute; right: 18px; bottom: 80px; width: 340px; height: 440px;
-    background: #161b22; border: 1px solid #30363d; border-radius: 12px; z-index: 20;
-    display: flex; flex-direction: column; box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+    position: absolute; right: 20px; bottom: 80px; width: min(360px, calc(100% - 32px)); height: min(440px, calc(100% - 100px));
+    background: var(--surface); border: 1px solid #dce3ef; border-radius: 16px; z-index: 20;
+    display: flex; flex-direction: column; box-shadow: 0 12px 48px #1b2a4826; overflow: hidden;
   }
   #chatbox[hidden] { display: none; }
-  #chat-head {
-    padding: 10px 12px; font-size: 13px; font-weight: 600;
-    border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 6px;
+  #chat-head { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; font-weight: 700; }
+  .chat-subtitle { font-size: 10px; font-weight: 400; color: var(--muted); margin-top: 3px; }
+  #chat-close { margin-left: auto; padding: 5px 9px; min-height: 32px; color: var(--muted); border-color: transparent; }
+  #chat-msgs { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .chat-msg { max-width: 90%; padding: 11px 13px; border-radius: 12px; font-size: 12px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .chat-msg.bot { background: var(--soft); border: 1px solid var(--line); align-self: flex-start; border-bottom-left-radius: 3px; }
+  .chat-msg.user { background: var(--blue); color: #fff; align-self: flex-end; border-bottom-right-radius: 3px; }
+  .chat-msg.thinking { color: #2455c5; background: var(--blue-soft); }
+  #chat-inrow { padding: 12px; border-top: 1px solid var(--line); }
+  #report-overlay { position: fixed; inset: 0; background: #18253b66; backdrop-filter: blur(5px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  #report-box { width: min(960px, 100%); height: 88vh; height: 88dvh; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 80px #13233f40; }
+  #report-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 22px; border-bottom: 1px solid var(--line); font-size: 14px; font-weight: 700; }
+  #report-close { font-size: 12px; }
+  #report-frame { flex: 1; min-height: 0; width: 100%; border: 0; background: var(--surface); }
+  :is(#app, #report-overlay) button:disabled { background: #f0f2f6; border-color: var(--line); color: #89909d; cursor: not-allowed; box-shadow: none; }
+  @media (min-width: 1600px) {
+    #app { grid-template-columns: 280px minmax(0, 1fr) 390px; }
+    #sidebar, #errorpanel { padding: 24px 20px; }
   }
-  #chat-close { margin-left: auto; cursor: pointer; color: #8b949e; }
-  #chat-close:hover { color: #e6edf3; }
-  #chat-msgs { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-  .chat-msg { max-width: 85%; padding: 8px 11px; border-radius: 10px; font-size: 12px; line-height: 1.55; white-space: pre-wrap; }
-  .chat-msg.bot { background: #21262d; align-self: flex-start; border-bottom-left-radius: 3px; }
-  .chat-msg.user { background: #1f6feb; color: #fff; align-self: flex-end; border-bottom-right-radius: 3px; }
-  .chat-msg.thinking { color: #bc8cff; background: #6e40c922; }
-  #chat-inrow { display: flex; gap: 6px; padding: 10px; border-top: 1px solid #30363d; }
-  #chat-in {
-    flex: 1; min-width: 0; padding: 8px; background: #0d1117; color: #e6edf3;
-    border: 1px solid #30363d; border-radius: 8px; font-size: 12px;
+  @media (max-width: 1199px) {
+    #app { grid-template-columns: 232px minmax(0, 1fr) 320px; }
+    .header-main { padding: 14px 18px; flex-wrap: wrap; gap: 12px; }
+    .header-actions { gap: 6px; }
+    #sidebar, #errorpanel { padding: 16px 12px; }
+    header h1 { font-size: 15px; }
+    .viewport-top { left: 16px; right: 16px; }
   }
-  #chat-in:focus { outline: 1px solid #6e40c9; }
-  #chat-go {
-    padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 12px;
-    background: #6e40c9; border: 1px solid #8957e5; color: #fff; font-weight: 600;
+  @media (max-width: 980px) {
+    body { overflow: auto; }
+    #app { height: auto; min-height: 100dvh; grid-template-columns: 240px minmax(0, 1fr); grid-template-rows: auto minmax(560px, 70vh) auto; }
+    .header-actions { margin-left: 0; }
+    .header-main { justify-content: space-between; }
+    #errorpanel { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); overflow: visible; padding: 24px; }
+    #err-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+    .err-card { margin-bottom: 0; }
+    #summary { gap: 12px; }
+    .copilot-panel { max-width: none; }
   }
-  #chat-go:disabled { opacity: 0.5; cursor: wait; }
-  #toolbar button {
-    flex: 1; padding: 6px; font-size: 12px; border-radius: 6px; cursor: pointer;
-    background: #21262d; border: 1px solid #30363d; color: #e6edf3;
+  @media (max-width: 600px) {
+    #app { display: flex; flex-direction: column; }
+    header { order: 0; }
+    .header-main { padding: 16px; }
+    .brand-caption { font-size: 10px; }
+    .header-actions { width: 100%; }
+    .header-actions button, #language { font-size: 11px; min-height: 36px; }
+    #undo-btn, #redo-btn { font-size: 20px; }
+    .project-bar { padding: 10px 16px; flex-wrap: wrap; gap: 6px 10px; }
+    .project-bar .badge { margin-left: 0; }
+    #scene-name { flex: 1; min-width: 200px; }
+    #viewport { order: 1; height: 520px; flex: 0 0 520px; border-bottom: 1px solid var(--line); }
+    #sidebar { order: 2; overflow: visible; border-right: 0; padding: 22px 16px; }
+    #errorpanel { order: 3; padding: 22px 16px; }
+    #err-list { grid-template-columns: minmax(0, 1fr); }
+    #list-equipment, #list-structures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
+    .item { flex-wrap: wrap; }
+    .item .sub { max-width: none; }
+    .viewport-legend { left: 16px; bottom: 90px; gap: 8px; }
+    #hint { left: 16px; bottom: 20px; }
+    #chatbox { right: 16px; }
+    #report-overlay { padding: 8px; }
+    #report-head { padding: 12px; }
   }
-  #toolbar button:hover { background: #30363d; }
-  #save-btn {
-    margin-left: auto; padding: 5px 14px; font-size: 12px; border-radius: 6px; cursor: pointer;
-    background: #238636; border: 1px solid #2ea043; color: #fff; font-weight: 600;
-  }
-  #save-btn:hover { background: #2ea043; }
-  #undo-btn, #redo-btn {
-    padding: 5px 10px; font-size: 13px; border-radius: 6px; cursor: pointer;
-    background: #21262d; border: 1px solid #30363d; color: #e6edf3;
-  }
-  #undo-btn { margin-left: auto; }
-  #undo-btn:hover, #redo-btn:hover { background: #30363d; }
-  /* ---- copilot ---- */
-  #autofix-btn {
-    width: 100%; padding: 9px; margin-bottom: 10px; border: 1px solid #6e40c9; border-radius: 6px;
-    background: #6e40c922; color: #bc8cff; font-size: 13px; font-weight: 600; cursor: pointer;
-  }
-  #autofix-btn:hover { background: #6e40c944; }
-  #autofix-btn:disabled { opacity: 0.5; cursor: wait; }
-  #report-btn {
-    width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #30363d; border-radius: 6px;
-    background: #21262d; color: #e6edf3; font-size: 13px; font-weight: 600; cursor: pointer;
-  }
-  #report-btn:hover { background: #30363d; }
-  #report-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 100;
-    display: flex; align-items: center; justify-content: center;
-  }
-  #report-box {
-    width: min(920px, 94vw); height: 86vh; background: #fff; border-radius: 10px;
-    display: flex; flex-direction: column; overflow: hidden;
-  }
-  #report-head {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 9px 14px; background: #161b22; color: #e6edf3; font-size: 13px; font-weight: 600;
-  }
-  #report-close {
-    background: #21262d; border: 1px solid #30363d; color: #e6edf3;
-    border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: 12px;
-  }
-  #report-frame { flex: 1; border: 0; background: #fff; }
-  #prop-rotate {
-    padding: 6px; font-size: 12px; border-radius: 6px; cursor: pointer;
-    background: #21262d; border: 1px solid #30363d; color: #e6edf3;
-  }
-  #prop-rotate:hover { background: #30363d; }
-  #cmd-row { display: flex; gap: 6px; margin-bottom: 8px; }
-  #cmd-input {
-    flex: 1; padding: 8px; background: #0d1117; color: #e6edf3;
-    border: 1px solid #30363d; border-radius: 6px; font-size: 12px;
-  }
-  #cmd-input:focus { outline: 1px solid #6e40c9; }
-  #cmd-send {
-    padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
-    background: #6e40c9; border: 1px solid #8957e5; color: #fff; font-weight: 600;
-  }
-  #cmd-send:disabled { opacity: 0.5; cursor: wait; }
-  #cmd-reply { font-size: 12px; line-height: 1.5; margin-bottom: 10px; }
-  #cmd-reply .msg { background: #161b22; border: 1px solid #6e40c955; border-radius: 6px; padding: 8px 10px; }
-  #cmd-reply .step { color: #8b949e; font-size: 11px; padding: 2px 0; }
-  #cmd-reply .step b { color: #3fb950; }
-  #cmd-reply .step.fail b { color: #f85149; }
+  @media (prefers-reduced-motion: reduce) { button { transition: none; } }
 </style>
 <script type="importmap">
 {
@@ -244,22 +274,36 @@
 <body>
 <div id="app">
   <header>
-    <h1 data-en="🏠 AI Home Layout Debugger">🏠 AI 가구 배치 검토 도우미</h1>
-    <span class="badge" id="scene-name">loading…</span>
-    <span class="badge" data-en="Home · AI Copilot" style="background:#23863633;color:#3fb950;border-color:#23863666">주거 공간 · AI 코파일럿</span>
-    <select id="language" aria-label="언어 / Language" style="background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:6px;padding:4px">
-      <option value="ko">한국어</option><option value="en">English</option>
-    </select>
-    <button id="undo-btn" title="실행취소 (Ctrl+Z)">↶</button>
-    <button id="redo-btn" title="다시실행 (Ctrl+Y)">↷</button>
-    <button id="save-btn" data-en="💾 Save">💾 저장</button>
-    <button id="reset-btn" data-en="↩ Restore saved">↩ 저장본 복원</button>
-    <button id="demo-btn" data-en="⟲ Reset demo">⟲ 데모 초기화</button>
+    <div class="header-main">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7M16 5V2m-2 1h4"/></svg></span>
+        <div><h1 data-en="AI Home Layout Debugger">AI 가구 배치 검토 도우미</h1><p class="brand-caption" data-en="A better space, thoughtfully verified.">더 나은 공간을 위한, 세심한 배치 검토.</p></div>
+      </div>
+      <div class="header-actions">
+        <select id="language" aria-label="언어 / Language">
+          <option value="ko">한국어</option><option value="en">English</option>
+        </select>
+        <div class="history-actions">
+          <button id="undo-btn" title="실행취소 (Ctrl+Z)">↶</button>
+          <button id="redo-btn" title="다시실행 (Ctrl+Y)">↷</button>
+        </div>
+        <button id="reset-btn" data-en="↩ Restore saved">↩ 저장본 복원</button>
+        <button id="demo-btn" data-en="⟲ Reset demo">⟲ 데모 초기화</button>
+        <button id="save-btn" data-en="Save layout">배치 저장</button>
+      </div>
+    </div>
+    <div class="project-bar">
+      <span class="project-label" data-en="Workspace /">작업 공간 /</span>
+      <span id="scene-name">불러오는 중…</span>
+      <span class="badge" data-en="Home · AI Copilot">주거 공간 · AI 코파일럿</span>
+    </div>
   </header>
   <div id="sidebar">
+    <div class="panel-intro"><div class="panel-title" data-en="Design library">디자인 라이브러리</div><p data-en="Create a space that works for you.">나에게 맞는 공간을 만들어 보세요.</p></div>
+    <section class="section-block">
     <h2 data-en="Design tools">설계 도구</h2>
     <div id="toolbar">
-      <select id="add-type">
+      <select id="add-type" aria-label="가구 종류">
         <option value="bed">침대</option>
         <option value="wardrobe">옷장</option>
         <option value="desk">책상</option>
@@ -271,10 +315,12 @@
         <option value="table">테이블</option>
       </select>
       <button id="add-obj" data-en="+ Add furniture">+ 가구 추가</button>
-      <button id="del-obj" data-en="🗑 Delete selected">🗑 선택 항목 삭제</button>
+      <button id="del-obj" data-en="Delete selected">선택 항목 삭제</button>
     </div>
+    </section>
+    <section class="section-block">
     <h2 data-en="Properties">속성</h2>
-    <div id="props-empty" data-en="Select an object to edit its properties" style="font-size:11px;color:#8b949e;padding:2px 0 6px">객체를 선택하면 속성을 편집할 수 있습니다</div>
+    <div id="props-empty" data-en="Select an object in the scene or library to edit its properties.">장면이나 라이브러리에서 객체를 선택하면 속성을 편집할 수 있습니다.</div>
     <div id="props" style="display:none">
       <label class="prop-row">ID <input id="prop-id" /></label>
       <label class="prop-row"><span data-en="Name">이름</span> <input id="prop-name" /></label>
@@ -287,17 +333,27 @@
       <button id="prop-rotate" data-en="↻ Rotate 90° (R)" style="display:none">↻ 90° 회전 (R)</button>
       <button id="prop-apply" data-en="✓ Apply">✓ 적용</button>
     </div>
+    </section>
     <h2 data-en="Furniture">가구</h2><div id="list-equipment"></div>
     <h2 id="pipes-header" data-en="Walkways" style="display:none">동선</h2><div id="list-pipes"></div>
     <h2 data-en="Structures / zones">구조/구역</h2><div id="list-structures"></div>
   </div>
   <div id="viewport">
-    <canvas id="canvas3d"></canvas>
+    <canvas id="canvas3d" aria-label="3D 배치 작업 공간"></canvas>
+    <div class="viewport-top">
+      <div><div class="viewport-title" data-en="Your space, in perspective">한눈에 보는 나의 공간</div><div class="viewport-caption" data-en="Select furniture to start refining your layout.">가구를 선택하고 배치를 다듬어 보세요.</div></div>
+      <span class="view-chip" data-en="3D workspace">3D 작업 공간</span>
+    </div>
+    <div class="viewport-legend">
+      <span><i class="legend-dot" aria-hidden="true"></i><span data-en="Violation">위반</span></span>
+      <span><i class="legend-dot clear" aria-hidden="true"></i><span data-en="Clearance passed">사용 공간 통과</span></span>
+      <span><i class="legend-dot route" aria-hidden="true"></i><span data-en="Walkway">동선</span></span>
+    </div>
     <div id="tooltip"></div>
     <div id="hint" data-en="Drag: orbit · Wheel: zoom · Click to select, drag arrows to move (Ctrl+Z: undo)">드래그: 회전 · 휠: 줌 · 클릭: 선택 후 화살표 드래그로 이동 (Ctrl+Z 실행취소)</div>
-    <button id="chat-fab" title="설계 도우미에게 질문하기">💬</button>
+    <button id="chat-fab" title="설계 도우미에게 질문하기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-8 8H5l-3 2v-10a9 9 0 0 1 18 0Z"/><path d="M7 10h8M7 14h5"/></svg></button>
     <div id="chatbox" hidden>
-      <div id="chat-head"><span data-en="🛟 Layout assistant">🛟 배치 도우미</span> <span data-en="· Layout, interior design, and help" style="font-weight:400;color:#8b949e;font-size:11px">· 가구 배치, 인테리어 상식, 사용법 질문</span><span id="chat-close">✕</span></div>
+      <div id="chat-head"><span class="ai-spark" aria-hidden="true">✦</span><div><span data-en="Layout assistant">배치 도우미</span><p class="chat-subtitle" data-en="Layout, interior design, and help">가구 배치, 인테리어 상식, 사용법 질문</p></div><button id="chat-close">✕</button></div>
       <div id="chat-msgs">
         <div class="chat-msg bot">안녕하세요! 인테리어가 처음이어도 괜찮아요. 예를 들어 이렇게 물어보세요:<br>· "책상 앞은 얼마나 비워야 해?"<br>· "침대는 창문 옆에 둬도 돼?"<br>· "동선은 어떻게 수정해?"</div>
       </div>
@@ -308,16 +364,21 @@
     </div>
   </div>
   <div id="errorpanel">
-    <h2 data-en="AI Copilot">AI 코파일럿</h2>
+    <div class="panel-intro"><div class="panel-title" data-en="Layout review">배치 검토</div><p data-en="Check every detail. Design with confidence.">꼼꼼하게 검토하고, 확신 있게 배치하세요.</p></div>
+    <section class="copilot-panel">
+    <h2><span class="ai-spark" aria-hidden="true">✦</span><span data-en="AI Copilot">AI 코파일럿</span></h2>
+    <p class="section-note" data-en="Describe a change. Let your copilot help.">원하는 변경을 말하면 코파일럿이 도와드려요.</p>
     <div id="cmd-row">
       <input id="cmd-input" placeholder="예: 책상을 창가로 옮겨줘" />
       <button id="cmd-send">▶</button>
     </div>
-    <div id="cmd-reply"></div>
+    <div id="cmd-reply" aria-live="polite"></div>
+    </section>
     <h2 data-en="Design verification">배치 검증</h2>
-    <button id="inspect-btn" data-en="🔍 Inspect layout">🔍 배치 검사 실행</button>
-    <button id="autofix-btn" data-en="🤖 Auto-fix all (Agent)">🤖 전체 자동 수정 (에이전트)</button>
-    <button id="report-btn" data-en="📄 Review report">📄 검토 리포트</button>
+    <p class="section-note" data-en="Review collisions, clearances, and walkways.">충돌, 사용 공간, 동선을 함께 확인합니다.</p>
+    <button id="inspect-btn" data-en="Inspect layout">배치 검사 실행</button>
+    <button id="autofix-btn" data-en="✦ Auto-fix all (Agent)">✦ 전체 자동 수정 (에이전트)</button>
+    <button id="report-btn" data-en="Review report ↗">검토 리포트 ↗</button>
     <div id="summary"></div>
     <div id="no-errors">✅ 위반 사항 없음</div>
     <div id="err-list"></div>
@@ -417,6 +478,10 @@ function localizeStatic() {
     ['chat-fab', '설계 도우미에게 질문하기', 'Ask the layout assistant'],
     ['chat-close', '닫기', 'Close'], ['chat-go', '질문 보내기', 'Send question'],
     ['cmd-send', '명령 실행', 'Run command'],
+    ['add-type', '가구 종류', 'Furniture type'],
+    ['canvas3d', '3D 배치 작업 공간', '3D layout workspace'],
+    ['chat-in', '배치 도우미에게 질문', 'Question for the layout assistant'],
+    ['cmd-input', '배치 변경 명령', 'Layout change command'],
   ]) {
     const el = document.getElementById(id);
     el.title = t(ko, en);
@@ -466,8 +531,8 @@ const canvas = document.getElementById('canvas3d');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0d1117);
-scene.fog = new THREE.Fog(0x0d1117, 40, 90);
+scene.background = new THREE.Color(0xf3f5f9);
+scene.fog = new THREE.Fog(0xf3f5f9, 40, 90);
 
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 200);
 camera.position.set(11, 9, 10);
@@ -508,7 +573,7 @@ scene.add(new THREE.AmbientLight(0xffffff, 0.55));
 const dir = new THREE.DirectionalLight(0xffffff, 1.4);
 dir.position.set(15, 25, 10);
 scene.add(dir);
-const dir2 = new THREE.DirectionalLight(0x8899ff, 0.4);
+const dir2 = new THREE.DirectionalLight(0xd9e5ff, 0.4);
 dir2.position.set(-10, 10, -15);
 scene.add(dir2);
 
@@ -521,12 +586,12 @@ const v3 = (p) => new THREE.Vector3(p[0], p[1], p[2]); // used inside root (Z-up
 
 // ---------- Materials ----------
 const COLORS = {
-  bed: 0x3d7bd9, wardrobe: 0x8d6e63, desk: 0xd9822b, sofa: 0x2e9e5b,
-  fridge: 0x9aa5b1, bookshelf: 0xb08968, tv_stand: 0x5a6572,
-  washing_machine: 0x74c0fc, table: 0xc79a5b,
-  deck: 0x30363d, zone: 0xd29922, walkway: 0x4dabf7, wall: 0x6b7684,
+  bed: 0x7599d3, wardrobe: 0xb39a83, desk: 0xc49b68, sofa: 0x78a38d,
+  fridge: 0xb8c5d4, bookshelf: 0xb99a74, tv_stand: 0x687a92,
+  washing_machine: 0x95b9d7, table: 0xc6a577,
+  deck: 0xe1e5ec, zone: 0xd19a35, walkway: 0x245ff4, wall: 0xaeb9c9,
 };
-const matFor = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.25 });
+const matFor = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0.08 });
 
 // ---------- Object registry (for selection) ----------
 const registry = new Map(); // id -> { meshes:[], baseEmissive, listEl, label }
@@ -873,10 +938,13 @@ function addLabel(text, posZup) {
   const w = ctx.measureText(text).width + 36;
   cv.width = w; cv.height = 72;
   const c2 = cv.getContext('2d');
-  c2.fillStyle = 'rgba(13,17,23,0.75)';
+  c2.fillStyle = 'rgba(255,255,255,0.93)';
   c2.beginPath(); c2.roundRect(0, 0, w, 72, 14); c2.fill();
+  c2.strokeStyle = '#cbd5e3';
+  c2.lineWidth = 2;
+  c2.stroke();
   c2.font = '600 44px Segoe UI';
-  c2.fillStyle = '#e6edf3';
+  c2.fillStyle = '#34445d';
   c2.fillText(text, 18, 52);
   const tex = new THREE.CanvasTexture(cv);
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
@@ -895,10 +963,10 @@ function addRoom(room) {
   const geo = new THREE.BoxGeometry(...size);
   const wire = new THREE.LineSegments(
     new THREE.EdgesGeometry(geo),
-    new THREE.LineBasicMaterial({ color: 0x30363d }));
+    new THREE.LineBasicMaterial({ color: 0xb7c3d4 }));
   wire.position.set(min[0] + size[0] / 2, min[1] + size[1] / 2, min[2] + size[2] / 2);
   root.add(wire);
-  const grid = new THREE.GridHelper(Math.max(size[0], size[1]) * 1.4, 28, 0x21262d, 0x1b2027);
+  const grid = new THREE.GridHelper(Math.max(size[0], size[1]) * 1.4, 28, 0xc6d1e0, 0xe0e6ef);
   grid.position.set((min[0] + max[0]) / 2, 0.01, -(min[1] + max[1]) / 2);
   if (!gridAdded) { scene.add(grid); gridAdded = true; }
 }
@@ -1033,7 +1101,7 @@ function clearMarkers() {
 }
 
 function addMarker(loc, severity) {
-  const color = severity === 'HIGH' ? 0xf85149 : 0xd29922;
+  const color = severity === 'HIGH' ? 0xd93648 : 0xb87909;
   const m = new THREE.Mesh(
     new THREE.SphereGeometry(0.22, 20, 20),
     new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, depthTest: false }));
@@ -1062,17 +1130,17 @@ async function runInspection() {
   drawCirculation(res.circulation?.paths || []);
 
   const sc = summary.score;
-  const scColor = sc >= 100 ? '#3fb950' : sc >= 70 ? '#d29922' : '#f85149';
+  const scColor = sc >= 100 ? 'var(--green)' : sc >= 70 ? 'var(--amber)' : 'var(--red)';
   document.getElementById('summary').innerHTML = `
     <div class="stat"><b>${esc(summary.checks_run)}</b><span>${t('검사', 'Checks')}</span></div>
     <div class="stat ok"><b>${esc(summary.passed)}</b><span>${t('통과', 'Passed')}</span></div>
-    <div class="stat bad"><b>${esc(summary.violations)}</b><span>${t('위반', 'Violations')}</span></div>
+    <div class="stat ${summary.violations ? 'bad' : 'ok'}"><b>${esc(summary.violations)}</b><span>${t('위반', 'Violations')}</span></div>
     <div class="stat"><b style="color:${scColor}">${esc(sc)}</b><span>${t('점수', 'Score')}</span></div>`;
   const ne = document.getElementById('no-errors');
   ne.style.display = violations.length ? 'none' : 'block';
   if (!violations.length)
     ne.innerHTML = `🏆 <b>${t('배치 승인 가능', 'Layout ready for approval')}</b> — ${t('모든 검사 통과 (100점)', 'All checks passed (100 points)')}<br>` +
-                   `<span style="font-size:11px;color:#8b949e">${t('📄 검토 리포트에서 수정 이력을 확인하세요', '📄 See the review report for edit history')}</span>`;
+                   `<span style="font-size:11px;color:var(--muted)">${t('📄 검토 리포트에서 수정 이력을 확인하세요', '📄 See the review report for edit history')}</span>`;
 
   // reset previous highlights/markers
   registry.forEach((_, id) => setViolationHighlight(id, false));
@@ -1120,8 +1188,8 @@ function drawCirculation(paths) {
   routeOverlays.length = 0;
   for (const path of paths) {
     const geometry = new THREE.BufferGeometry().setFromPoints(path.points.map(p => new THREE.Vector3(...p)));
-    const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({color: 0x3366ff,
-      transparent: true, opacity: 0.65}));
+    const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({color: 0x245ff4,
+      transparent: true, opacity: 0.8}));
     root.add(line); routeOverlays.push(line);
   }
 }
@@ -1134,8 +1202,8 @@ function drawUsageSpaces(spaces) {
     const {min, max} = side.box;
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(max[0] - min[0], max[1] - min[1], max[2] - min[2]),
-      new THREE.MeshBasicMaterial({color: side.passed ? 0x22a06b : 0xe5484d,
-        transparent: true, opacity: 0.22, depthWrite: false}));
+      new THREE.MeshBasicMaterial({color: side.passed ? 0x15865c : 0xdb3548,
+        transparent: true, opacity: 0.26, depthWrite: false}));
     mesh.position.set((min[0]+max[0])/2, (min[1]+max[1])/2, (min[2]+max[2])/2);
     root.add(mesh); usageOverlays.push(mesh);
   }
@@ -1149,7 +1217,7 @@ function clearGhosts() {
 }
 
 const ghostMat = new THREE.MeshStandardMaterial({
-  color: 0x3fb950, transparent: true, opacity: 0.45, roughness: 0.4, depthTest: false });
+  color: 0x159562, transparent: true, opacity: 0.45, roughness: 0.6, depthTest: false });
 
 function previewCandidate(cand) {
   clearGhosts();
@@ -1216,7 +1284,7 @@ async function toggleCandidates(card, violation) {
       <div class="c-head">
         <span class="opt">${t(`${esc(c.option)}안`, `Option ${esc(c.option)}`)}</span>
         ${c.recommended ? `<span class="rec-badge">${t('★ 추천', '★ Recommended')}</span>` : ''}
-        <span class="vbadge" ${c.verified ? '' : 'style="color:#d29922"'}>
+        <span class="vbadge" ${c.verified ? '' : 'style="color:var(--amber)"'}>
           ${c.verified ? t(`✓ 검증됨 · 잔여 위반 ${esc(c.violations_after)}건`, `✓ Verified · ${esc(c.violations_after)} remaining`)
                        : t(`⚠ 신규 위반 ${esc(c.new_violations)}건 유발 · 잔여 ${esc(c.violations_after)}건`, `⚠ ${esc(c.new_violations)} new violations · ${esc(c.violations_after)} remaining`)}
         </span>
@@ -1256,7 +1324,7 @@ async function toggleCandidates(card, violation) {
       <h4>${t('추천 근거', 'Recommendation rationale')}</h4><div>${esc(a.recommendation)}</div>
       <h4>${t('과거 유사 사례', 'Similar past cases')}</h4><div>${esc(a.past_case)}</div>
       <div class="kb">${t('근거: 규정', 'Sources: rules')} ${esc((a.knowledge_used?.rules || []).join(', '))} · ${t('사례', 'cases')} ${esc((a.knowledge_used?.cases || []).join(', '))}
-      ${a.llm ? t('· Claude 생성', '· Generated by Claude') : t('· 템플릿 (LLM 미연결)', '· Template (LLM offline)')}</div>`;
+      ${a.llm ? t('· AI 생성', '· Generated by AI') : t('· 템플릿 (LLM 미연결)', '· Template (LLM offline)')}</div>`;
   };
   wrap.appendChild(aiBtn);
   previewCandidate(res.candidates[0]); // auto-preview the recommended fix
@@ -1315,7 +1383,7 @@ document.getElementById('save-btn').onclick = async (e) => {
     await refreshStorage();
     const btn = e.target;
     btn.textContent = t('✓ 저장됨', '✓ Saved');
-    setTimeout(() => { btn.textContent = t('💾 저장', '💾 Save'); }, 1500);
+    setTimeout(() => { btn.textContent = t('배치 저장', 'Save layout'); }, 1500);
   } catch (error) { alert(error.message); }
 };
 
@@ -1358,7 +1426,7 @@ document.getElementById('autofix-btn').onclick = async (e) => {
     if (revision === languageRevision) document.getElementById('cmd-reply').textContent = t('⚠ 자동 수정에 실패했습니다.', '⚠ Auto-fix failed.');
   } finally {
     btn.disabled = false;
-    btn.textContent = t('🤖 전체 자동 수정 (에이전트)', '🤖 Auto-fix all (Agent)');
+    btn.textContent = t('✦ 전체 자동 수정 (에이전트)', '✦ Auto-fix all (Agent)');
   }
   await refresh();
 };
@@ -1382,15 +1450,23 @@ async function showReport() {
     : `<tr><td colspan="3" style="color:#868e96">${t('이번 세션의 수정 이력이 없습니다', 'No edits in this session')}</td></tr>`;
   const html = `<!DOCTYPE html><html lang="${lang}"><head><meta charset="UTF-8"><title>${t('배치 검토 리포트', 'Layout review report')}</title>
 <style>
- body{font-family:'Segoe UI',sans-serif;max-width:860px;margin:32px auto;padding:0 24px;color:#212529}
- h1{font-size:22px;border-bottom:2px solid #212529;padding-bottom:8px} h2{font-size:15px;margin-top:28px}
- table{width:100%;border-collapse:collapse;font-size:12.5px} th,td{border:1px solid #dee2e6;padding:6px 9px;text-align:left}
- th{background:#f1f3f5} .meta{color:#868e96;font-size:12px}
- .score{font-size:40px;font-weight:800} .cards{display:flex;gap:12px;margin:16px 0}
- .card{flex:1;border:1px solid #dee2e6;border-radius:8px;padding:14px;text-align:center}
- .card span{display:block;font-size:11px;color:#868e96;margin-top:2px}
- .foot{margin-top:32px;font-size:11px;color:#868e96;border-top:1px solid #dee2e6;padding-top:8px}
- @media print {.noprint{display:none}}
+ *{box-sizing:border-box}
+ body{font-family:'Segoe UI','Malgun Gothic',sans-serif;max-width:900px;margin:36px auto;padding:0 28px;color:#20242c;line-height:1.6}
+ h1{font-size:24px;letter-spacing:-.6px;border-bottom:3px solid #245ff4;padding-bottom:16px;margin-bottom:12px}
+ h2{font-size:15px;margin-top:32px}
+ table{width:100%;border-collapse:collapse;font-size:12px}
+ th,td{border-bottom:1px solid #e5e8ee;padding:11px 10px;text-align:left;overflow-wrap:anywhere}
+ th{background:#f3f6fc;color:#46536a;font-weight:600}
+ .meta{color:#626b7a;font-size:12px}
+ .score{font-size:36px;font-weight:750;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+ .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:24px 0}
+ .card{background:#f8f9fc;border:1px solid #e5e8ee;border-radius:12px;padding:16px 8px;text-align:center}
+ .card span{display:block;font-size:11px;color:#626b7a;margin-top:2px}
+ .foot{margin-top:32px;font-size:11px;color:#626b7a;border-top:1px solid #e5e8ee;padding-top:16px}
+ button{font:600 12px 'Segoe UI',sans-serif;background:#245ff4;color:white;border:0;border-radius:8px;cursor:pointer}
+ button:hover{background:#174bd1} button:focus-visible{outline:3px solid #245ff480;outline-offset:3px}
+ @media(max-width:600px){body{padding:0 14px;margin:20px auto}h1{font-size:20px}.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}th,td{padding:7px 4px;font-size:10px}}
+ @media print {.noprint{display:none}body{margin:0;max-width:none}h2,tr,.card{break-inside:avoid}}
 </style></head><body>
 <h1>${t('🏠 가구 배치 검토 리포트', '🏠 Furniture layout review report')}</h1>
 <p class="meta">${esc(sceneName(r.scene_name))} · ${t('생성', 'Generated')} ${esc(r.generated)} · ${t('AI 가구 배치 검토 도우미', 'AI Home Layout Debugger')}</p>
