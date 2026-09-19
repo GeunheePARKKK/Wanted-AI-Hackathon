@@ -20,6 +20,7 @@ def client(demo_scene, monkeypatch, tmp_path):
     data_file = tmp_path / "house2.json"
     data_file.write_text(demo_scene.model_dump_json(by_alias=True), encoding="utf-8")
     monkeypatch.setattr(main, "DATA_FILE", data_file)
+    monkeypatch.setattr(main, "SAVED_FILE", tmp_path / "saved_layout.json")
     monkeypatch.setattr(main, "WORK", {"scene": demo_scene.model_copy(deep=True)})
     monkeypatch.setattr(main, "UNDO", [])
     monkeypatch.setattr(main, "REDO", [])

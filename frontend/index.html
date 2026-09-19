@@ -254,6 +254,7 @@
     <button id="redo-btn" title="다시실행 (Ctrl+Y)">↷</button>
     <button id="save-btn" data-en="💾 Save">💾 저장</button>
     <button id="reset-btn" data-en="↩ Restore saved">↩ 저장본 복원</button>
+    <button id="demo-btn" data-en="⟲ Reset demo">⟲ 데모 초기화</button>
   </header>
   <div id="sidebar">
     <h2 data-en="Design tools">설계 도구</h2>
@@ -1222,11 +1223,18 @@ async function toggleCandidates(card, violation) {
 }
 
 document.getElementById('reset-btn').onclick = async () => {
-  await api('/api/reset', { method: 'POST' });
-  clearGhosts();
-  await loadScene();
-  await runInspection();
+  try { await api('/api/restore', { method: 'POST' }); await refresh(); }
+  catch (error) { alert(error.message); }
 };
+document.getElementById('demo-btn').onclick = async () => {
+  try { await api('/api/reset', { method: 'POST' }); await refresh(); }
+  catch (error) { alert(error.message); }
+};
+
+async function refreshStorage() {
+  const state = await (await api('/api/storage')).json();
+  document.getElementById('reset-btn').disabled = !state.saved_exists;
+}
 
 // ---------- Design tools (Phase 6) ----------
 const TYPE_SIZES = {
@@ -1262,10 +1270,13 @@ document.getElementById('del-obj').onclick = async () => {
 };
 
 document.getElementById('save-btn').onclick = async (e) => {
-  await api('/api/save', { method: 'POST' });
-  const btn = e.target;
-  btn.textContent = t('✓ 저장됨', '✓ Saved');
-  setTimeout(() => { btn.textContent = t('💾 저장', '💾 Save'); }, 1500);
+  try {
+    await api('/api/save', { method: 'POST' });
+    await refreshStorage();
+    const btn = e.target;
+    btn.textContent = t('✓ 저장됨', '✓ Saved');
+    setTimeout(() => { btn.textContent = t('💾 저장', '💾 Save'); }, 1500);
+  } catch (error) { alert(error.message); }
 };
 
 // ---------- Undo / Redo ----------
@@ -1273,6 +1284,7 @@ async function refresh() {
   clearGhosts();
   await loadScene();
   await runInspection();
+  await refreshStorage();
 }
 async function doUndo() { await api('/api/undo', { method: 'POST' }); await refresh(); }
 async function doRedo() { await api('/api/redo', { method: 'POST' }); await refresh(); }

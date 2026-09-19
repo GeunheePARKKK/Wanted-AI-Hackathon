@@ -5,10 +5,13 @@ Run:  uvicorn backend.main:app --reload --port 8000
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import Body, FastAPI
+from fastapi import Body, FastAPI, HTTPException
+from pydantic import ValidationError
 from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -24,6 +27,7 @@ from backend.i18n import LANGUAGE, display_name, tr
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
 DATA_FILE = BASE_DIR / "data" / "house2.json"
+SAVED_FILE = BASE_DIR / "data" / "saved_layout.json"
 
 app = FastAPI(title="AI Home Layout Debugger")
 
@@ -40,12 +44,13 @@ async def select_language(request, call_next):
         LANGUAGE.reset(token)
 
 
-def load_scene() -> Scene:
-    raw = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+def load_scene(path: Path | None = None) -> Scene:
+    source = path if path is not None else (SAVED_FILE if SAVED_FILE.exists() else DATA_FILE)
+    raw = json.loads(source.read_text(encoding="utf-8"))
     return Scene.model_validate(raw)
 
 
-# Working copy: candidate fixes are applied here (original file is never touched)
+# Working copy: the demo file is never overwritten.
 WORK: dict[str, Scene] = {"scene": load_scene()}
 UNDO: list[Scene] = []
 REDO: list[Scene] = []
@@ -82,11 +87,43 @@ def update_scene(scene: Scene) -> dict:
 
 @app.post("/api/save")
 def save_scene() -> dict:
-    """Persist the working scene to the design file."""
-    DATA_FILE.write_text(
-        json.dumps(WORK["scene"].model_dump(by_alias=True), ensure_ascii=False, indent=2),
-        encoding="utf-8")
+    """Atomically save the working layout without modifying the original demo."""
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=SAVED_FILE.parent,
+                                         prefix=".layout-", suffix=".tmp", delete=False) as f:
+            temporary = Path(f.name)
+            json.dump(WORK["scene"].model_dump(by_alias=True), f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        temporary.replace(SAVED_FILE)
+    except OSError as exc:
+        raise HTTPException(500, detail=tr("저장에 실패했습니다: ", "Save failed: ") + str(exc)) from exc
+    finally:
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
     return {"saved": True}
+
+
+@app.get("/api/storage")
+def storage_status() -> dict:
+    return {"saved_exists": SAVED_FILE.is_file()}
+
+
+def _load_for_api(path: Path) -> Scene:
+    try:
+        return load_scene(path)
+    except (OSError, ValueError, ValidationError) as exc:
+        raise HTTPException(500, detail=tr("배치 파일을 읽을 수 없습니다: ", "Cannot load layout: ") + str(exc)) from exc
+
+
+@app.post("/api/restore")
+def restore_scene() -> dict:
+    if not SAVED_FILE.is_file():
+        raise HTTPException(404, detail=tr("저장된 배치가 없습니다.", "No saved layout exists."))
+    _mutate(_load_for_api(SAVED_FILE))
+    _log("restore", tr("저장본 복원", "Restored saved layout"))
+    return inspect_scene(WORK["scene"])
 
 
 @app.get("/api/inspect")
@@ -217,11 +254,9 @@ def chat(body: dict = Body(...)) -> dict:
 
 @app.post("/api/reset")
 def reset() -> dict:
-    """Discard all applied fixes and reload the original design."""
-    UNDO.clear()
-    REDO.clear()
-    HISTORY.clear()
-    WORK["scene"] = load_scene()
+    """Load the original demo as an undoable edit; retain the saved layout."""
+    _mutate(_load_for_api(DATA_FILE))
+    _log("reset", tr("데모 초기화", "Loaded original demo"))
     return inspect_scene(WORK["scene"])
 
 

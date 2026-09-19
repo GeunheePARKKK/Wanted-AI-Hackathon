@@ -4,3 +4,5 @@ __pycache__/
 venv/
 .env
 .pytest_cache/
+backend/data/saved_layout.json
+backend/data/.layout-*.tmp

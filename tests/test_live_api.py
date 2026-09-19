@@ -48,6 +48,13 @@ def test_live_http_autofix(client):
             assert request("/api/report?lang=en")["summary"]["score"] == 100
             assert request("/api/undo", "POST") == before
             assert request("/api/redo", "POST") == fixed["inspection"]
+            assert request("/api/storage") == {"saved_exists": False}
+            assert request("/api/save", "POST") == {"saved": True}
+            saved = main.SAVED_FILE.read_bytes()
+            assert request("/api/storage") == {"saved_exists": True}
+            assert request("/api/reset", "POST") == before
+            assert request("/api/restore", "POST") == fixed["inspection"]
+            assert main.SAVED_FILE.read_bytes() == saved
             assert main.DATA_FILE.read_bytes() == original
             print(f"\nHTTP autofix: {before['summary']['violations']} -> 0; score 100; {elapsed:.3f}s")
         finally:

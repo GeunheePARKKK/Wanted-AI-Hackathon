@@ -160,7 +160,7 @@ eval(`(async () => {${code}\n${checks}})()`).catch(error => {
 
 
 def test_frontend_i18n_smoke():
-    node = shutil.which("node")
+    node = shutil.which("node") or shutil.which("node.exe")
     if node is None:
         pytest.skip("Node.js is required for frontend JavaScript smoke checks")
     result = subprocess.run(
