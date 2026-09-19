@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import math
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 Vec3 = list[float]  # [x, y, z] in meters, Z-up
@@ -12,6 +12,16 @@ class Box(BaseModel):
     """Axis-aligned bounding box."""
     min: Vec3
     max: Vec3
+
+    @model_validator(mode="after")
+    def valid_bounds(self):
+        if len(self.min) != 3 or len(self.max) != 3:
+            raise ValueError("box coordinates must have three components")
+        if not all(math.isfinite(v) for v in self.min + self.max):
+            raise ValueError("box coordinates must be finite")
+        if any(a >= b for a, b in zip(self.min, self.max)):
+            raise ValueError("box min must be smaller than max on each axis")
+        return self
 
 
 class RoomMeta(BaseModel):
@@ -84,3 +94,10 @@ class Scene(BaseModel):
     structures: list[Structure]
     equipment: list[Equipment]
     pipes: list[Pipe] = []
+
+    @model_validator(mode="after")
+    def unique_ids(self):
+        ids = [obj.id for obj in self.equipment + self.structures + self.pipes + self.rooms]
+        if any(not oid or oid == "room" for oid in ids) or len(ids) != len(set(ids)):
+            raise ValueError("scene IDs must be unique, non-empty, and not 'room'")
+        return self

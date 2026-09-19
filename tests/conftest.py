@@ -25,5 +25,6 @@ def client(demo_scene, monkeypatch, tmp_path):
     monkeypatch.setattr(main, "UNDO", [])
     monkeypatch.setattr(main, "REDO", [])
     monkeypatch.setattr(main, "HISTORY", [])
+    monkeypatch.setattr(main, "PENDING_COMMANDS", {})
     with TestClient(main.app) as test_client:
         yield test_client

@@ -13,6 +13,9 @@ from typing import Any
 from backend.llm import _call_claude
 from backend.models import Box, Equipment, Pipe, Scene, Structure
 from backend.i18n import TYPE_NAMES, display_name, language_instruction, tr
+from backend.detector import inspect_scene
+from backend.resolver import _vkey
+from backend.placement import place
 
 TYPE_SIZES = {
     "bed": [2.0, 1.1, 0.5], "wardrobe": [1.2, 0.6, 2.0], "desk": [1.2, 0.6, 0.75],
@@ -26,14 +29,17 @@ PROMPT = """당신은 1인 주택(거실·침실·서재) 가구 배치 CAD 어�
 사용자 요청: "{text}"
 
 사용 가능한 작업(ops) 목록:
+- {{"op":"place","id":"<기존 가구 id>","room":"<방 id>","near":"<가까이 둘 구조물/가구 id, 선택>"}}
+- {{"op":"place","type":"<새 가구 종류>","room":"<방 id>","near":"<선택>"}}
 - {{"op":"add_equipment","type":"bed|wardrobe|desk|sofa|fridge|bookshelf|tv_stand|washing_machine|table","center":[x,y]}}
 - {{"op":"move","id":"<객체id>","delta":[dx,dy,dz]}}
 - {{"op":"rotate","id":"<가구id>"}}  (제자리 90° 회전)
 - {{"op":"delete","id":"<객체id>"}}
 
 규칙:
-- 가구는 반드시 하나의 방(rooms 중 하나) 경계 안에 완전히 들어가도록 좌표를 계산할 것
-- 기존 가구의 box와 겹치지 않게 배치할 것
+- 추가·재배치는 place를 우선 사용한다. 좌표나 회전 후보를 계산하지 말고 방과 가까이 둘 대상만 지정한다.
+- move는 사용자가 명시한 상대 이동량이 있을 때만 사용한다. add_equipment의 좌표도 사용자가 직접 지정한 경우에만 쓴다.
+- 가구 배치 가능 여부와 수치는 결정론적 엔진이 검증한다. 검증 전에 성공했다고 단정하지 않는다.
 - 문 개폐 구역(zone)과 창문 앞 구역은 비워둘 것
 - 존재하는 id만 참조할 것
 
@@ -84,6 +90,8 @@ def _find(scene: Scene, oid: str):
 
 def _apply_op(s: Scene, op: dict) -> str:
     k = op["op"]
+    if k == "place":
+        return place(s, op, TYPE_SIZES)
     if k == "add_equipment":
         t = op["type"]
         size = op.get("size") or TYPE_SIZES[t]
@@ -144,20 +152,46 @@ def _apply_op(s: Scene, op: dict) -> str:
 
 
 def run_command(scene: Scene, text: str) -> dict[str, Any]:
-    out = _call_claude(PROMPT.format(scene=_brief(scene), text=text) + language_instruction())
-    if out is None:
-        return {"error": tr("AI 호출에 실패했습니다. AI 제공자 설정을 확인하세요.",
-                            "AI request failed. Check your AI provider configuration.")}
-    s = copy.deepcopy(scene)
-    done, errors = [], []
-    for op in out.get("ops") or []:
+    prompt = PROMPT.format(scene=_brief(scene), text=text) + language_instruction()
+    old_keys = {_vkey(v) for v in inspect_scene(scene, include_paths=False)["violations"]}
+    for attempt in range(2):
+        out = _call_claude(prompt)
+        if not isinstance(out, dict):
+            return {"error": tr("AI 호출에 실패했습니다. AI 제공자 설정을 확인하세요.",
+                                "AI request failed. Check your AI provider configuration.")}
+        candidate = copy.deepcopy(scene)
+        done, errors = [], []
+        ops = out.get("ops", [])
+        if not isinstance(ops, list) or len(ops) > 20:
+            return {"error": tr("AI 작업 목록 형식이 잘못되었습니다.", "Invalid AI operation list.")}
         try:
-            done.append(_apply_op(s, op))
-        except Exception as e:  # keep applying the rest
-            errors.append(f"{op.get('op', '?')}: {e}")
-    return {
-        "scene": s if done else None,
-        "reply": out.get("reply", ""),
-        "applied": done,
-        "errors": errors,
-    }
+            for op in ops:
+                if not isinstance(op, dict) or op.get("op") not in {"place", "move", "rotate", "delete", "add_equipment"}:
+                    raise ValueError("Unsupported operation")
+                if op.get("op") in {"move", "rotate", "delete"}:
+                    _, kind, _ = _find(candidate, op["id"])
+                    if kind != "equipment":
+                        raise ValueError("Only furniture can be modified")
+                done.append(_apply_op(candidate, op))
+            candidate = Scene.model_validate(candidate.model_dump())
+        except (KeyError, TypeError, ValueError, IndexError) as exc:
+            errors.append(str(exc))
+        introduced = [] if errors else [
+            v for v in inspect_scene(candidate, include_paths=False)["violations"] if _vkey(v) not in old_keys]
+        if not errors and not introduced:
+            return {"scene": candidate if done else None, "reply": str(out.get("reply", "")),
+                    "applied": done, "errors": [], "ops": ops}
+        if attempt == 0:
+            prompt += "\nEngine rejected the proposal. Retry once without these new violations/errors:\n" + json.dumps(
+                {"ops": ops, "new_violations": introduced, "errors": errors}, ensure_ascii=False)
+            continue
+        if errors:
+            return {"error": tr("명령을 적용하지 않았습니다: ", "Command was not applied: ") + "; ".join(errors),
+                    "errors": errors, "applied": []}
+        count = len(introduced)
+        return {
+            "scene": None, "pending_scene": candidate, "ops": ops,
+            "reply": tr(f"새 위반 {count}건: ", f"{count} new violations: ") +
+                     " / ".join(v["detail"] for v in introduced),
+            "new_violations": introduced, "applied": [], "errors": [], "blocked": True,
+        }

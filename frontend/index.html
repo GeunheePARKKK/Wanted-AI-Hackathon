@@ -391,8 +391,15 @@ const severityName = severity => severity === 'HIGH' ? t('높음', 'High') : t('
 function api(path, options) {
   const url = new URL(path, window.location.origin);
   url.searchParams.set('lang', lang);
-  return fetch(url, options).then(response => {
-    if (!response.ok) throw new Error(t('요청 실패', 'Request failed') + ` (${response.status})`);
+  return fetch(url, options).then(async response => {
+    if (!response.ok) {
+      let message = t('요청 실패', 'Request failed') + ` (${response.status})`;
+      if (response.headers?.get('content-type')?.includes('application/json')) {
+        const body = await response.json();
+        message += ': ' + (typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail));
+      }
+      throw new Error(message);
+    }
     return response;
   });
 }
@@ -1439,6 +1446,20 @@ async function sendCommand() {
         box.innerHTML = `<div class="msg">🤖 ${esc(r.reply || t('완료', 'Done'))}</div>` +
           (r.applied || []).map(a => `<div class="step"><b>✓</b> ${esc(a)}</div>`).join('') +
           (r.errors || []).map(er => `<div class="step fail"><b>✗</b> ${esc(er)}</div>`).join('');
+        if (r.blocked && r.token) {
+          const force = document.createElement('button');
+          force.textContent = t('그래도 적용', 'Apply anyway');
+          force.onclick = async () => {
+            force.disabled = true;
+            try {
+              await api('/api/command/apply', {method: 'POST',
+                headers: {'Content-Type': 'application/json'}, body: JSON.stringify({token: r.token})});
+              box.textContent = t('사용자 확인 후 적용했습니다.', 'Applied after your confirmation.');
+              await refresh();
+            } catch (error) { box.textContent = error.message; }
+          };
+          box.appendChild(force);
+        }
       }
     }
     if (!r.error) {

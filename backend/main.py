@@ -7,6 +7,8 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from threading import RLock
+from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
 
@@ -55,6 +57,8 @@ WORK: dict[str, Scene] = {"scene": load_scene()}
 UNDO: list[Scene] = []
 REDO: list[Scene] = []
 HISTORY: list[dict] = []
+PENDING_COMMANDS: dict[str, dict] = {}
+STATE_LOCK = RLock()
 
 
 def _log(kind: str, text: str) -> None:
@@ -64,11 +68,13 @@ def _log(kind: str, text: str) -> None:
 
 
 def _mutate(new_scene: Scene) -> None:
-    UNDO.append(WORK["scene"])
-    if len(UNDO) > 50:
-        UNDO.pop(0)
-    REDO.clear()
-    WORK["scene"] = new_scene
+    with STATE_LOCK:
+        UNDO.append(WORK["scene"])
+        if len(UNDO) > 50:
+            UNDO.pop(0)
+        REDO.clear()
+        WORK["scene"] = new_scene
+        PENDING_COMMANDS.clear()
 
 
 @app.get("/api/scene")
@@ -160,18 +166,22 @@ def apply_fix(body: dict = Body(...)) -> dict:
 
 @app.post("/api/undo")
 def undo() -> dict:
-    if UNDO:
-        REDO.append(WORK["scene"])
-        WORK["scene"] = UNDO.pop()
-    return inspect_scene(WORK["scene"])
+    with STATE_LOCK:
+        if UNDO:
+            REDO.append(WORK["scene"])
+            WORK["scene"] = UNDO.pop()
+            PENDING_COMMANDS.clear()
+        return inspect_scene(WORK["scene"])
 
 
 @app.post("/api/redo")
 def redo() -> dict:
-    if REDO:
-        UNDO.append(WORK["scene"])
-        WORK["scene"] = REDO.pop()
-    return inspect_scene(WORK["scene"])
+    with STATE_LOCK:
+        if REDO:
+            UNDO.append(WORK["scene"])
+            WORK["scene"] = REDO.pop()
+            PENDING_COMMANDS.clear()
+        return inspect_scene(WORK["scene"])
 
 
 @app.post("/api/autofix")
@@ -222,14 +232,36 @@ def autofix() -> dict:
 @app.post("/api/command")
 def command(body: dict = Body(...)) -> dict:
     """Natural-language design command via LLM -> structured ops -> re-inspect."""
-    result = run_command(WORK["scene"], str(body.get("text", ""))[:500])
-    if result.get("scene") is not None:
-        _mutate(result.pop("scene"))
-        _log("copilot", result.get("reply") or tr("AI 명령 수행", "Applied AI command"))
-    else:
-        result.pop("scene", None)
-    result["inspection"] = inspect_scene(WORK["scene"])
+    original = WORK["scene"]
+    result = run_command(original, str(body.get("text", ""))[:500])
+    with STATE_LOCK:
+        if WORK["scene"] is not original:
+            raise HTTPException(409, detail=tr("배치가 변경되었습니다. 명령을 다시 실행하세요.",
+                                               "Layout changed. Run the command again."))
+        candidate = result.pop("scene", None)
+        pending = result.pop("pending_scene", None)
+        if candidate is not None:
+            _mutate(candidate)
+            _log("copilot", result.get("reply") or tr("AI 명령 수행", "Applied AI command"))
+        elif pending is not None:
+            token = uuid4().hex
+            PENDING_COMMANDS.clear()
+            PENDING_COMMANDS[token] = {"original": original, "scene": pending, "ops": result["ops"]}
+            result["token"] = token
+        result["inspection"] = inspect_scene(WORK["scene"])
     return result
+
+
+@app.post("/api/command/apply")
+def force_command(body: dict = Body(...)) -> dict:
+    with STATE_LOCK:
+        pending = PENDING_COMMANDS.get(str(body.get("token", "")))
+        if pending is None or pending["original"] is not WORK["scene"]:
+            raise HTTPException(409, detail=tr("명령이 만료되었습니다. 다시 요청하세요.",
+                                               "Command expired. Request it again."))
+        _mutate(pending["scene"])
+        _log("copilot", tr("사용자 확인 후 위반을 포함한 명령 적용", "Applied command with violations after user confirmation"))
+        return {"applied": True, "ops": pending["ops"], "inspection": inspect_scene(WORK["scene"])}
 
 
 @app.get("/api/report")
