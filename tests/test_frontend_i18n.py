@@ -24,7 +24,7 @@ function section(start, end) { return script.slice(script.indexOf(start), script
 class Element {
   constructor() {
     this.children = []; this.style = {}; this.dataset = {}; this.value = '';
-    this.innerHTML = ''; this.textContent = ''; this.isConnected = true;
+    this.innerHTML = ''; this.textContent = ''; this.isConnected = true; this.disabled = false;
   }
   appendChild(child) { this.children.push(child); return child; }
   replaceChildren() { this.children = []; this.innerHTML = ''; }
@@ -65,6 +65,18 @@ const commitEdit = async () => {};
 const select = () => {};
 const nextId = () => 'bed_1';
 const TYPE_SIZES = {bed: [2, 1.1, .5]};
+const alerts = [];
+const alert = message => alerts.push(message);
+const setTimeout = () => {};
+const selectedId = null;
+const registry = new Map();
+const tooltip = new Element();
+const chatHistory = [];
+const chatMsg = () => {};
+const renderScene = () => {};
+let sceneLoads = 0, inspections = 0;
+const loadScene = async () => { sceneLoads++; };
+const runInspection = async () => { inspections++; };
 
 const code = [
   section('// ---------- Presentation-only localization', '// ---------- Renderer / Scene'),
@@ -72,9 +84,68 @@ const code = [
   section('async function showReport()', '// ---------- Natural-language commands'),
   section('async function sendCommand()', "document.getElementById('cmd-send').onclick"),
   section("document.getElementById('add-obj').onclick", "document.getElementById('del-obj').onclick"),
+  section('async function refreshStorage()', '// ---------- Design tools'),
+  section("document.getElementById('save-btn').onclick", '// ---------- Undo / Redo'),
 ].join('\n');
 const checks = `
 assert.equal(lang, 'ko');
+assert.match(html, /<button\\b[^>]*id="reset-btn"[^>]*\\bdisabled\\b/,
+  'Restore must be disabled before startup requests finish');
+const restoreButton = document.getElementById('reset-btn');
+response = {saved_exists: false};
+${section('// ---------- Bootstrap ----------', '// ---------- Loop ----------')}
+assert.equal(restoreButton.disabled, true, 'Startup must check saved-layout availability');
+assert(requests.some(url => url.pathname === '/api/storage'));
+assert.equal(sceneLoads, 1);
+assert.equal(inspections, 1);
+for (const language of ['en', 'ko']) {
+  document.getElementById('language').value = language;
+  await changeLanguage();
+  assert.equal(restoreButton.disabled, true, 'Language changes must preserve unavailable restore');
+  assert.equal(requests.at(-1).pathname, '/api/storage');
+  assert.equal(requests.at(-1).searchParams.get('lang'), language);
+}
+
+const saveButton = document.getElementById('save-btn');
+response = {saved_exists: true};
+await saveButton.onclick({target: saveButton});
+assert.deepEqual(requests.slice(-2).map(url => url.pathname), ['/api/save', '/api/storage']);
+assert.equal(restoreButton.disabled, false, 'A successful mocked save must enable restore');
+assert.equal(saveButton.textContent, '✓ 저장됨');
+document.getElementById('language').value = 'en';
+await changeLanguage();
+assert.equal(restoreButton.disabled, false, 'A saved layout remains available after language changes');
+
+const workingFetch = fetch;
+let releaseStorage;
+fetch = () => new Promise(resolve => {
+  releaseStorage = () => resolve({ok: true, json: async () => ({saved_exists: false})});
+});
+const storagePending = refreshStorage();
+assert.equal(restoreButton.disabled, true, 'Unknown/in-flight storage status must disable restore');
+releaseStorage();
+assert.equal(await storagePending, true);
+assert.equal(restoreButton.disabled, true);
+
+fetch = async url => url.pathname === '/api/save'
+  ? {ok: true}
+  : {ok: false, status: 503, headers: {get: () => 'application/json'},
+      json: async () => ({detail: 'Storage unavailable'})};
+restoreButton.disabled = false;
+saveButton.textContent = 'Save layout';
+await saveButton.onclick({target: saveButton});
+assert.equal(restoreButton.disabled, true, 'A storage API failure must fail closed');
+assert.equal(saveButton.textContent, 'Save layout', 'A failed status check must not show save success');
+assert.match(alerts.at(-1), /Could not check saved-layout status:.*503.*Storage unavailable/);
+fetch = workingFetch;
+response = {saved_exists: 'false'};
+assert.equal(await refreshStorage(), false);
+assert.equal(restoreButton.disabled, true);
+assert.match(alerts.at(-1), /Invalid saved-layout status response/);
+response = {saved_exists: true};
+assert.equal(await refreshStorage(), true);
+assert.equal(restoreButton.disabled, false, 'A later successful check must recover');
+lang = 'ko';
 const bed = {id: 'bed', type: 'bed', name: '침대 (침실)'};
 assert.equal(displayName(bed), '침대 (침실)');
 assert.equal(shortName(bed), '침대');
@@ -158,7 +229,7 @@ document.getElementById('cmd-reply').innerHTML = '';
 release();
 await pending;
 assert.equal(document.getElementById('cmd-reply').innerHTML, '');
-console.log('Frontend localization, API language, names, escaping, report, and stale-response checks passed');
+console.log('Frontend storage startup/save/errors, localization, API language, names, escaping, report, and stale-response checks passed');
 `;
 eval(`(async () => {${code}\n${checks}})()`).catch(error => {
   console.error(error);
