@@ -9,10 +9,11 @@ Every recommendation shown to the user is therefore verified, never guessed.
 from __future__ import annotations
 
 import copy
+import math
 from typing import Any
 
 from backend import geometry as g
-from backend.detector import inspect_scene
+from backend.detector import Inspector, inspect_scene
 from backend.models import Scene
 from backend.i18n import direction, display_name, tr, with_particle
 
@@ -24,7 +25,8 @@ AXES = {"x": (1.0, 0.0, 0.0), "y": (0.0, 1.0, 0.0), "z": (0.0, 0.0, 1.0)}
 IMPACT = {
     "offset_pipe_segment": ("동선 경로 조정", 0),
     "move_equipment": ("가구 재배치", 100),
-    "rotate_equipment": ("가구 90° 회전 (제자리)", 0),
+    "rotate_equipment": ("가구 제자리 회전", 0),
+    "transform_equipment": ("가구 회전 및 이동", 150),
     "move_structure": ("구조 요소 이동 — 시공/구조 검토 필요", 3000),
 }
 
@@ -72,7 +74,7 @@ def _apply_action(scene: Scene, action: dict) -> Scene:
     t = action["type"]
     if t == "offset_pipe_segment":
         _find_pipe(s, action["pipe_id"]).path = action["new_path"]
-    elif t == "rotate_equipment":
+    elif t in ("rotate_equipment", "transform_equipment"):
         obj, _ = _find_box_obj(s, action["target_id"])
         obj.box.min = action["new_box"]["min"]
         obj.box.max = action["new_box"]["max"]
@@ -87,7 +89,16 @@ def _apply_action(scene: Scene, action: dict) -> Scene:
 def _verify(scene: Scene, action: dict, target_key: tuple,
             old_keys: set) -> tuple[bool, int, int]:
     """Returns (resolves_target, newly_introduced_count, total_violations_after)."""
-    result = inspect_scene(_apply_action(scene, action), include_paths=False)
+    changed = _apply_action(scene, action)
+    fast = Inspector(changed, include_paths=False)
+    fast.check_equipment_overlaps()
+    fast.check_room_containment()
+    fast.check_bounds()
+    fast.check_maintenance_space()
+    fast_keys = {_vkey(v) for v in fast.violations}
+    if fast_keys - old_keys or target_key in fast_keys:
+        return False, len(fast_keys - old_keys), len(fast_keys)
+    result = inspect_scene(changed, include_paths=False)
     new_keys = {_vkey(v) for v in result["violations"]}
     resolves = target_key not in new_keys
     introduced = len(new_keys - old_keys)
@@ -105,7 +116,6 @@ class Resolver:
         self.target_key = _vkey(violation)
         self.old_keys = old_keys
         self.candidates: list[dict[str, Any]] = []
-        self.relaxed: list[tuple] = []  # fallback fixes that introduce side effects
         base = max(self.v["required_mm"] - self.v["measured_mm"], 0.0) / MM + MARGIN_M
         exact = max(self.v["required_mm"] - self.v["measured_mm"], 0.0) / MM  # snug fit, no margin
         sweep = [0.2, 0.35, 0.5, 0.8, 1.2, 1.8, 2.5, 3.5]
@@ -122,8 +132,7 @@ class Resolver:
         return None if obj is None else (tuple(obj.box.min), tuple(obj.box.max))
 
     def _try_direction(self, make_action, mags, describe) -> None:
-        """Walk magnitudes: keep the first clean fix, remember the best relaxed one."""
-        best = None
+        """Keep the first fully verified, side-effect-free fix in this direction."""
         for mag in mags:
             action = make_action(mag)
             resolves, introduced, n_after = _verify(
@@ -131,10 +140,6 @@ class Resolver:
             if resolves and introduced == 0:
                 self._add(action, mag, describe(mag), n_after, introduced=0)
                 return
-            if resolves and (best is None or introduced < best[0]):
-                best = (introduced, action, mag, n_after)
-        if best is not None:
-            self.relaxed.append((best[0], best[1], best[2], describe(best[2]), best[3]))
 
     # ---------- candidate families ----------
     def try_pipe_offsets(self, pipe_id: str) -> None:
@@ -166,10 +171,8 @@ class Resolver:
 
     def try_box_moves(self, target_id: str) -> None:
         obj, action_type = _find_box_obj(self.scene, target_id)
-        if obj is None:
+        if obj is None or action_type != "move_equipment":
             return
-        if getattr(obj, "type", "") == "zone":
-            return  # door/window keep-clear zones are fixed by the building itself
         other_box = self._counterpart_box(target_id)
         req = self.v["required_mm"] / MM + MARGIN_M
         for axis_i, axis in enumerate(("x", "y")):  # furniture stays on the floor
@@ -211,6 +214,7 @@ class Resolver:
             "offset_pipe_segment": "Adjust walkway route",
             "move_equipment": "Reposition furniture",
             "rotate_equipment": "Rotate furniture in place",
+            "transform_equipment": "Rotate and reposition furniture",
             "move_structure": "Move structure - construction review required",
         }[action["type"]])
         # vertical relocation of equipment/structures is a last resort
@@ -227,21 +231,21 @@ class Resolver:
             "score": round(mag_m * MM + penalty + introduced * 2000, 1),
         })
 
-    def try_rotation(self, target_id: str) -> None:
-        """In-place 90-degree rotation (AABB width/depth swap around center)."""
+    def try_rotation(self, target_id: str, delta: int = 90) -> None:
+        """Rotate cardinally, including square furniture with directional access."""
         obj, action_type = _find_box_obj(self.scene, target_id)
         if obj is None or action_type != "move_equipment":
             return
         w = obj.box.max[0] - obj.box.min[0]
         d = obj.box.max[1] - obj.box.min[1]
-        if abs(w - d) < 1e-9:
-            return  # square footprint: rotation changes nothing
+        if delta % 180 == 0:
+            w, d = d, w
         cx = (obj.box.min[0] + obj.box.max[0]) / 2
         cy = (obj.box.min[1] + obj.box.max[1]) / 2
         action = {
             "type": "rotate_equipment",
             "target_id": target_id,
-            "rotation_delta": 90,
+            "rotation_delta": delta,
             "new_box": {
                 "min": [cx - d / 2, cy - w / 2, obj.box.min[2]],
                 "max": [cx + d / 2, cy + w / 2, obj.box.max[2]],
@@ -249,13 +253,45 @@ class Resolver:
         }
         resolves, introduced, n_after = _verify(
             self.scene, action, self.target_key, self.old_keys)
-        description = tr(f"{with_particle(display_name(obj), '을/를')} 제자리에서 90° 회전",
-                         f"Rotate {display_name(obj)} 90 degrees in place")
+        description = tr(f"{with_particle(display_name(obj), '을/를')} 제자리에서 {delta}° 회전",
+                         f"Rotate {display_name(obj)} {delta} degrees in place")
         if resolves and introduced == 0:
             self._add(action, 0.2, description, n_after, introduced=0)
-        elif resolves:
-            self.relaxed.append((introduced, action, 0.2,
-                                 description, n_after))
+
+    def try_combined_moves(self, target_id: str) -> None:
+        obj, action_type = _find_box_obj(self.scene, target_id)
+        if obj is None or action_type != "move_equipment":
+            return
+        cx = (obj.box.min[0] + obj.box.max[0]) / 2
+        cy = (obj.box.min[1] + obj.box.max[1]) / 2
+        width = obj.box.max[0] - obj.box.min[0]
+        depth = obj.box.max[1] - obj.box.min[1]
+        diagonals = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+        for rotation in (0, 90, 180, 270):
+            w, d = (depth, width) if rotation % 180 else (width, depth)
+            directions = diagonals if rotation == 0 else [*diagonals, (1, 0), (-1, 0), (0, 1), (0, -1)]
+            for dx, dy in directions:
+                length = math.hypot(dx, dy)
+                ux, uy = dx / length, dy / length
+                def make(mag, rx=ux, ry=uy, turn=rotation, sx=w, sy=d):
+                    return {
+                        "type": "transform_equipment", "target_id": target_id,
+                        "rotation_delta": turn, "translation_m": [rx * mag, ry * mag, 0],
+                        "new_box": {
+                            "min": [cx + rx*mag - sx/2, cy + ry*mag - sy/2, obj.box.min[2]],
+                            "max": [cx + rx*mag + sx/2, cy + ry*mag + sy/2, obj.box.max[2]],
+                        },
+                    }
+                labels = []
+                if dx:
+                    labels.append(direction("x", dx))
+                if dy:
+                    labels.append(direction("y", dy))
+                label = " / ".join(labels)
+                self._try_direction(make, self.magnitudes,
+                    lambda mag, turn=rotation, label=label: tr(
+                        f"{with_particle(display_name(obj), '을/를')} {turn}° 회전 후 {label}으로 {mag*MM:.0f} mm 이동",
+                        f"Rotate {display_name(obj)} {turn} degrees, then move {mag*MM:.0f} mm {label}"))
 
     # ---------- entry ----------
     def run(self) -> list[dict[str, Any]]:
@@ -266,16 +302,17 @@ class Resolver:
             self.try_pipe_offsets(b["id"])
         if a["kind"] != "pipe":
             self.try_box_moves(a["id"])
-        if b["kind"] not in ("pipe", "room") and b["id"] != "room":
+        if b["kind"] not in ("pipe", "room") and b["id"] not in ("room", a["id"]):
             self.try_box_moves(b["id"])
-        for subj in (a, b):
+        subjects = {subj["id"]: subj for subj in (a, b)}.values()
+        for subj in subjects:
             if subj["kind"] == "equipment":
-                self.try_rotation(subj["id"])
-        # fallback: no perfectly clean fix exists -> offer least-harmful ones
-        if not self.candidates and self.relaxed:
-            self.relaxed.sort(key=lambda r: (r[0], r[2]))
-            for introduced, action, mag, desc, n_after in self.relaxed[:3]:
-                self._add(action, mag, desc, n_after, introduced=introduced)
+                for delta in (90, 180, 270):
+                    self.try_rotation(subj["id"], delta)
+        if len(self.candidates) < 2:
+            for subj in subjects:
+                if subj["kind"] == "equipment":
+                    self.try_combined_moves(subj["id"])
         # maintenance space: prefer moving the intruder (b), not the equipment
         # that owns the clearance requirement (a)
         if self.v["code"] == "USAGE_SPACE":
